@@ -74,6 +74,21 @@ const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},se
 const ss={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
 let tiles=JSON.parse(store.get(KEY)||'[]');
 const save=()=>store.set(KEY,JSON.stringify(tiles));
+/* Voreingestellte Seiten (direkt zur Kategorien-Übersicht), einmalig hinzufügen */
+const DEFAULTS=[
+  {group:'Seiten',name:'xHamster',url:'https://xhamster.com/categories'},
+  {group:'Seiten',name:'Pornhub',url:'https://www.pornhub.com/categories'},
+  {group:'Seiten',name:'YouPorn',url:'https://www.youporn.com/categories/'},
+  {group:'Seiten',name:'RedTube',url:'https://www.redtube.com/categories'},
+  {group:'Seiten',name:'SpankBang',url:'https://spankbang.com/categories'},
+  {group:'Seiten',name:'XVideos',url:'https://www.xvideos.com/tags'},
+  {group:'Seiten',name:'XNXX',url:'https://www.xnxx.com/tags'},
+  {group:'Seiten',name:'Eporner',url:'https://www.eporner.com/categories/'}
+];
+if(!store.get('tvstart.defaults1')){
+  DEFAULTS.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults1','1');
+}
 const hash=s=>{let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return String(h)};
 
 function render(){
