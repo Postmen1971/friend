@@ -50,6 +50,9 @@ public class MainActivity extends Activity {
     WebChromeClient.CustomViewCallback customCb;
 
     boolean cursorMode = false;
+    boolean overlayMode = false;
+    boolean tapAllowed = false;
+    String tvview = "";
     boolean hintShown = false;
     boolean backLong = false, okDown = false, okLong = false;
     boolean clearHistoryOnLoad = false;
@@ -74,7 +77,11 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
-        s.setMediaPlaybackRequiresUserGesture(false);
+        // Vorschauvideos sollen nicht alle von selbst loslaufen (bremst stark)
+        s.setMediaPlaybackRequiresUserGesture(true);
+        s.setOffscreenPreRaster(true);
+        tvview = readAsset("tvview.js");
+        web.addJavascriptInterface(new Bridge(), "TVApp");
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setBuiltInZoomControls(false);
@@ -135,6 +142,8 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageStarted(WebView v, String url, android.graphics.Bitmap fav) {
+                overlayMode = false;
+                tapAllowed = true;
                 updateMode(url);
             }
 
@@ -146,7 +155,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView v, String url) {
                 updateMode(url);
-                if (!isHome(url)) js(AUTO_FULLSCREEN);
+                if (!isHome(url)) { js(AUTO_FULLSCREEN); js(tvview); }
                 if (isHome(url)) {
                     if (clearHistoryOnLoad) {
                         clearHistoryOnLoad = false;
@@ -208,6 +217,8 @@ public class MainActivity extends Activity {
         return url != null && url.startsWith("https://" + HOST);
     }
 
+    static final String MV = "(function(){var vs=document.querySelectorAll('video'),v=null,m=-1;for(var i=0;i<vs.length;i++){var r=vs[i].getBoundingClientRect(),a=r.width*r.height;if(a>m){m=a;v=vs[i]}}return v})()";
+
     static final String AUTO_FULLSCREEN =
             "(function(){if(window.__tvfs)return;window.__tvfs=1;" +
             "document.addEventListener('play',function(e){var v=e.target;" +
@@ -222,7 +233,9 @@ public class MainActivity extends Activity {
             "magsrv.com", "tsyndicate.com", "trafficstars.com", "adsterra.com", "hilltopads.net",
             "clickadu.com", "doubleclick.net", "googlesyndication.com", "adnxs.com",
             "adxpansion.com", "plugrush.com", "trafficfactory.biz", "ero-advertising.com",
-            "a-ads.com", "onclickads.net", "adcash.com", "twinrdsrv.com", "pemsrv.com"
+            "a-ads.com", "onclickads.net", "adcash.com", "twinrdsrv.com", "pemsrv.com",
+            "google-analytics.com", "googletagmanager.com", "scorecardresearch.com", "hotjar.com",
+            "quantserve.com", "criteo.com", "taboola.com", "outbrain.com", "adspyglass.com"
     };
 
     static boolean isAdHost(String h) {
@@ -259,6 +272,75 @@ public class MainActivity extends Activity {
         });
     }
 
+    String readAsset(String name) {
+        try {
+            InputStream in = getAssets().open(name);
+            java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+            in.close();
+            return bo.toString("UTF-8");
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Schnittstelle für die TV-Ansicht (tvview.js) */
+    class Bridge {
+        @android.webkit.JavascriptInterface
+        public void overlay(final boolean on) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    overlayMode = on;
+                    updateMode(web.getUrl());
+                    if (on) web.requestFocus();
+                }
+            });
+        }
+
+        @android.webkit.JavascriptInterface
+        public void playAt(final float x, final float y) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    // Nur einmal pro Seite: Player der Seite antippen, damit das Video startet
+                    if (!tapAllowed || overlayMode || isHome(web.getUrl())) return;
+                    tapAllowed = false;
+                    @SuppressWarnings("deprecation")
+                    float sc = web.getScale();
+                    tapAt(x * sc, y * sc);
+                }
+            });
+        }
+
+        @android.webkit.JavascriptInterface
+        public void saveTile() {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    askSaveTile();
+                }
+            });
+        }
+    }
+
+    void showMenu() {
+        if (isHome(web.getUrl())) return;
+        final String[] items = {"TV-Ansicht anzeigen", "Diese Seite als Kachel speichern", "Zur Startseite"};
+        new AlertDialog.Builder(this)
+                .setItems(items, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        if (w == 0) js("window.__tvv_show&&window.__tvv_show()");
+                        else if (w == 1) askSaveTile();
+                        else goHome(false);
+                    }
+                })
+                .show();
+    }
+
     final Runnable hideCursorR = new Runnable() {
         @Override
         public void run() {
@@ -274,14 +356,14 @@ public class MainActivity extends Activity {
     }
 
     void updateMode(String url) {
-        boolean c = !isHome(url);
+        boolean c = !isHome(url) && !overlayMode;
         if (c == cursorMode) return;
         cursorMode = c;
         cursor.setVisibility(c ? View.VISIBLE : View.GONE);
         if (c && !hintShown) {
             hintShown = true;
             Toast.makeText(this,
-                    "Steuerkreuz = Zeiger · OK = Klick\nOK lange = Seite als Kachel speichern\nZURÜCK lange = Startseite",
+                    "Steuerkreuz = Zeiger · OK = Klick\nOK lange = Menü (TV-Ansicht, Kachel speichern)\nZURÜCK lange = Startseite",
                     Toast.LENGTH_LONG).show();
         }
     }
@@ -341,13 +423,35 @@ public class MainActivity extends Activity {
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
                 case KeyEvent.KEYCODE_MEDIA_PLAY:
                 case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                    js("(function(){var v=document.querySelector('video');if(v){if(v.paused)v.play();else v.pause();}})()");
+                    js("(function(){var v=" + MV + ";if(v){if(v.paused)v.play();else v.pause();}})()");
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-                    js("(function(){var v=document.querySelector('video');if(v)v.currentTime+=10;})()");
+                    js("(function(){var v=" + MV + ";if(v)v.currentTime+=10;})()");
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_REWIND:
-                    js("(function(){var v=document.querySelector('video');if(v)v.currentTime-=10;})()");
+                    js("(function(){var v=" + MV + ";if(v)v.currentTime-=10;})()");
+                    return true;
+            }
+        }
+
+        if (customView != null) {
+            // Vollbild-Video: OK = Pause/Weiter, links/rechts = 10 s spulen
+            switch (k) {
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                    if (a == KeyEvent.ACTION_DOWN && rep == 0)
+                        js("(function(){var v=" + MV + ";if(v){if(v.paused)v.play();else v.pause();}})()");
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    if (a == KeyEvent.ACTION_DOWN) {
+                        int sec = (k == KeyEvent.KEYCODE_DPAD_RIGHT ? 10 : -10) * (rep > 3 ? 3 : 1);
+                        js("(function(){var v=" + MV + ";if(v)v.currentTime=Math.max(0,v.currentTime+(" + sec + "));})()");
+                    }
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_UP:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
                     return true;
             }
         }
@@ -373,7 +477,7 @@ public class MainActivity extends Activity {
                 case KeyEvent.KEYCODE_BUTTON_A:
                     if (a == KeyEvent.ACTION_DOWN) {
                         if (rep == 0) { okDown = true; okLong = false; }
-                        else if (okDown && !okLong) { okLong = true; askSaveTile(); }
+                        else if (okDown && !okLong) { okLong = true; showMenu(); }
                     } else if (a == KeyEvent.ACTION_UP) {
                         if (okDown && !okLong) click();
                         okDown = false;
@@ -386,7 +490,7 @@ public class MainActivity extends Activity {
     }
 
     void move(int dx, int dy, int rep) {
-        float step = Math.min(5 + rep * 2.5f, 36) * density;
+        float step = Math.min(3 + rep * 1.5f, 28) * density;
         float w = cursor.getWidth(), h = cursor.getHeight();
         float nx = cursor.cx + dx * step, ny = cursor.cy + dy * step;
         float sx = 0, sy = 0;
@@ -404,7 +508,10 @@ public class MainActivity extends Activity {
     }
 
     void click() {
-        final float x = cursor.cx, y = cursor.cy;
+        tapAt(cursor.cx, cursor.cy);
+    }
+
+    void tapAt(final float x, final float y) {
         final long t = SystemClock.uptimeMillis();
         MotionEvent down = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0);
         down.setSource(InputDevice.SOURCE_TOUCHSCREEN);
