@@ -95,8 +95,27 @@ public class MainActivity extends Activity {
             }
 
             @Override
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                String url = r.getUrl().toString();
+                if (!(url.startsWith("http://") || url.startsWith("https://"))) return true;
+                if (!r.isForMainFrame() || r.isRedirect()) return false;
+                String cur = v.getUrl();
+                if (cur == null || isHome(cur) || isHome(url)) return false;
+                if (!sameSite(cur, url)) {
+                    // Werbe-Weiterleitung auf eine fremde Seite blockieren
+                    Toast.makeText(MainActivity.this, "Weiterleitung blockiert", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                return false;
+            }
+
+            @Override
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
+                if (isAdHost(u.getHost())) {
+                    return new WebResourceResponse("text/plain", "UTF-8",
+                            new java.io.ByteArrayInputStream(new byte[0]));
+                }
                 if (!HOST.equals(u.getHost())) return null;
                 String p = u.getPath();
                 if (p == null || p.equals("/") || p.isEmpty()) p = "/index.html";
@@ -127,6 +146,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView v, String url) {
                 updateMode(url);
+                if (!isHome(url)) js(AUTO_FULLSCREEN);
                 if (isHome(url)) {
                     if (clearHistoryOnLoad) {
                         clearHistoryOnLoad = false;
@@ -144,13 +164,39 @@ public class MainActivity extends Activity {
                 customView = view;
                 customCb = cb;
                 root.addView(view, 1, new FrameLayout.LayoutParams(-1, -1));
+                cursor.setVisibility(View.GONE);
             }
 
             @Override
             public void onHideCustomView() {
                 hideCustom();
             }
+
+            @Override
+            public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, android.os.Message msg) {
+                // Popups: ohne Klick immer blockieren; mit Klick nur Links derselben Seite im Hauptfenster öffnen
+                if (!isUserGesture) return false;
+                final WebView tmp = new WebView(MainActivity.this);
+                final boolean[] done = {false};
+                tmp.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView w, String url) {
+                        handlePopup(url, done, tmp);
+                        return true;
+                    }
+
+                    @Override
+                    public void onPageStarted(WebView w, String url, android.graphics.Bitmap f) {
+                        handlePopup(url, done, tmp);
+                    }
+                });
+                WebView.WebViewTransport t = (WebView.WebViewTransport) msg.obj;
+                t.setWebView(tmp);
+                msg.sendToTarget();
+                return true;
+            }
         });
+        s.setSupportMultipleWindows(true);
 
         web.setFocusable(true);
         web.setFocusableInTouchMode(true);
@@ -160,6 +206,71 @@ public class MainActivity extends Activity {
 
     boolean isHome(String url) {
         return url != null && url.startsWith("https://" + HOST);
+    }
+
+    static final String AUTO_FULLSCREEN =
+            "(function(){if(window.__tvfs)return;window.__tvfs=1;" +
+            "document.addEventListener('play',function(e){var v=e.target;" +
+            "if(!v||v.tagName!=='VIDEO')return;" +
+            "if(document.fullscreenElement||document.webkitFullscreenElement)return;" +
+            "try{var f=v.requestFullscreen||v.webkitRequestFullscreen||v.webkitEnterFullscreen;" +
+            "if(f){var p=f.call(v);if(p&&p.catch)p.catch(function(){});}}catch(x){}},true);})()";
+
+    static final String[] AD_HOSTS = {
+            "exoclick.com", "exosrv.com", "exdynsrv.com", "trafficjunky.com", "trafficjunky.net",
+            "juicyads.com", "popads.net", "popcash.net", "propellerads.com", "realsrv.com",
+            "magsrv.com", "tsyndicate.com", "trafficstars.com", "adsterra.com", "hilltopads.net",
+            "clickadu.com", "doubleclick.net", "googlesyndication.com", "adnxs.com",
+            "adxpansion.com", "plugrush.com", "trafficfactory.biz", "ero-advertising.com",
+            "a-ads.com", "onclickads.net", "adcash.com", "twinrdsrv.com", "pemsrv.com"
+    };
+
+    static boolean isAdHost(String h) {
+        if (h == null) return false;
+        h = h.toLowerCase();
+        for (String d : AD_HOSTS) if (h.equals(d) || h.endsWith("." + d)) return true;
+        return false;
+    }
+
+    static String baseDomain(String url) {
+        String h = Uri.parse(url).getHost();
+        if (h == null) return "";
+        String[] p = h.toLowerCase().split("\\.");
+        if (p.length < 2) return h;
+        return p[p.length - 2] + "." + p[p.length - 1];
+    }
+
+    static boolean sameSite(String a, String b) {
+        return baseDomain(a).equals(baseDomain(b));
+    }
+
+    void handlePopup(String url, boolean[] done, final WebView tmp) {
+        if (done[0] || url == null || url.startsWith("about:")) return;
+        done[0] = true;
+        String cur = web.getUrl();
+        if (cur != null && sameSite(cur, url)) web.loadUrl(url);
+        else Toast.makeText(this, "Popup blockiert", Toast.LENGTH_SHORT).show();
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                tmp.stopLoading();
+                tmp.destroy();
+            }
+        });
+    }
+
+    final Runnable hideCursorR = new Runnable() {
+        @Override
+        public void run() {
+            if (customView != null) cursor.setVisibility(View.GONE);
+        }
+    };
+
+    void showCursorBriefly() {
+        if (customView == null) return;
+        cursor.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(hideCursorR);
+        handler.postDelayed(hideCursorR, 3000);
     }
 
     void updateMode(String url) {
@@ -179,6 +290,8 @@ public class MainActivity extends Activity {
         if (customView == null) return;
         root.removeView(customView);
         customView = null;
+        handler.removeCallbacks(hideCursorR);
+        cursor.setVisibility(cursorMode ? View.VISIBLE : View.GONE);
         if (customCb != null) customCb.onCustomViewHidden();
         customCb = null;
     }
@@ -240,6 +353,7 @@ public class MainActivity extends Activity {
         }
 
         if (cursorMode) {
+            if (a == KeyEvent.ACTION_DOWN) showCursorBriefly();
             switch (k) {
                 case KeyEvent.KEYCODE_DPAD_UP:
                     if (a == KeyEvent.ACTION_DOWN) move(0, -1, rep);

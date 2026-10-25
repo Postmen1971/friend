@@ -94,7 +94,12 @@ const hash=s=>{let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return
 function render(){
   const m=document.getElementById('main');m.innerHTML='';
   const groups={};
-  tiles.forEach((t,i)=>{const g=t.group||'Allgemein';(groups[g]=groups[g]||[]).push(Object.assign({},t,{i:i}))});
+  const all=tiles.map((t,i)=>Object.assign({},t,{i:i}));
+  /* Zuletzt geöffnet (max. 4) ganz oben */
+  const recent=all.filter(t=>t.last).sort((a,b)=>b.last-a.last).slice(0,4);
+  if(recent.length&&!document.body.classList.contains('edit'))groups['Zuletzt geöffnet']=recent;
+  /* Innerhalb jeder Gruppe: am häufigsten geöffnet zuerst */
+  all.slice().sort((a,b)=>(b.count||0)-(a.count||0)).forEach(t=>{const g=t.group||'Allgemein';(groups[g]=groups[g]||[]).push(t)});
   const names=Object.keys(groups);
   if(!names.length){m.innerHTML='<p class="empty">Noch keine Kacheln. Mit „Bearbeiten“ → „+“ hinzufügen.</p>'}
   names.forEach(g=>{
@@ -107,7 +112,10 @@ function render(){
       b.onclick=()=>{
         if(document.body.classList.contains('edit')){
           if(confirm('„'+t.name+'“ löschen?')){tiles.splice(t.i,1);save();render();focusFirst()}
-        } else location.href=t.url;
+        } else {
+          const o=tiles[t.i];o.count=(o.count||0)+1;o.last=Date.now();save();
+          location.href=t.url;
+        }
       };
       grid.appendChild(b);
     });
