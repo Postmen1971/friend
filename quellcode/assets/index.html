@@ -10,6 +10,7 @@
 body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Roboto,sans-serif;font-size:18px}
 header{display:flex;justify-content:space-between;align-items:center;padding:22px 36px 4px}
 h1{margin:0;font-size:26px;font-weight:600}
+.ver{color:var(--mut);font-size:14px;font-weight:400;margin-left:10px}
 .hint{color:var(--mut);font-size:14px;padding:0 36px}
 .bar{display:flex;gap:16px}
 button,input{font:inherit;color:var(--txt)}
@@ -41,7 +42,7 @@ body.edit .tile .del{display:block}
 </head>
 <body>
 <header>
-  <h1>TV Start</h1>
+  <h1>TV Start<span class="ver" id="ver"></span></h1>
   <div class="bar">
     <button class="btn" id="editBtn">Bearbeiten</button>
     <button class="btn" id="lockBtn">Sperren</button>
@@ -216,6 +217,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* Schnittstellen für die App */
+window.tvVersion=function(v){document.getElementById('ver').textContent='Version '+v};
 window.tvAddTiles=function(list){
   (list||[]).forEach(t=>{if(t&&t.url)tiles.push({group:t.group||'',name:t.name||t.url,url:t.url})});
   save();

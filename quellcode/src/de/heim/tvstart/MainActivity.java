@@ -183,6 +183,10 @@ public class MainActivity extends Activity {
                         web.clearHistory();
                     }
                     flushPending();
+                    try {
+                        String ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                        js("window.tvVersion&&window.tvVersion('" + ver + "')");
+                    } catch (Exception ignored) { }
                 }
             }
         });
