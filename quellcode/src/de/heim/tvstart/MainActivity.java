@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     FrameLayout root;
     WebView web;
     CursorView cursor;
+    TextView loading;
     View customView;
     WebChromeClient.CustomViewCallback customCb;
 
@@ -71,6 +72,14 @@ public class MainActivity extends Activity {
         cursor = new CursorView(this);
         cursor.setVisibility(View.GONE);
         root.addView(cursor, new FrameLayout.LayoutParams(-1, -1));
+        loading = new TextView(this);
+        loading.setText("Lädt …");
+        loading.setTextColor(Color.rgb(154, 160, 173));
+        loading.setTextSize(22);
+        loading.setGravity(android.view.Gravity.CENTER);
+        loading.setBackgroundColor(Color.rgb(14, 15, 19));
+        loading.setVisibility(View.GONE);
+        root.addView(loading, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
 
         WebSettings s = web.getSettings();
@@ -79,7 +88,7 @@ public class MainActivity extends Activity {
         s.setDatabaseEnabled(true);
         // Vorschauvideos sollen nicht alle von selbst loslaufen (bremst stark)
         s.setMediaPlaybackRequiresUserGesture(true);
-        s.setOffscreenPreRaster(true);
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
         tvview = readAsset("tvview.js");
         web.addJavascriptInterface(new Bridge(), "TVApp");
         s.setLoadWithOverviewMode(true);
@@ -119,7 +128,7 @@ public class MainActivity extends Activity {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
-                if (isAdHost(u.getHost())) {
+                if (isAdHost(u.getHost()) || isPreviewClip(u)) {
                     return new WebResourceResponse("text/plain", "UTF-8",
                             new java.io.ByteArrayInputStream(new byte[0]));
                 }
@@ -145,11 +154,23 @@ public class MainActivity extends Activity {
                 overlayMode = false;
                 tapAllowed = true;
                 updateMode(url);
+                showLoading(!isHome(url));
             }
 
             @Override
             public void doUpdateVisitedHistory(WebView v, String url, boolean reload) {
                 updateMode(url);
+            }
+
+            @Override
+            public void onPageCommitVisible(WebView v, String url) {
+                // TV-Ansicht so früh wie möglich einbinden (wartet selbst, bis die Seite bereit ist)
+                if (!isHome(url)) { js(AUTO_FULLSCREEN); js(tvview); }
+            }
+
+            @Override
+            public void onReceivedError(WebView v, WebResourceRequest r, android.webkit.WebResourceError e) {
+                if (r.isForMainFrame()) showLoading(false);
             }
 
             @Override
@@ -295,6 +316,7 @@ public class MainActivity extends Activity {
                 public void run() {
                     overlayMode = on;
                     updateMode(web.getUrl());
+                    showLoading(false);
                     if (on) web.requestFocus();
                 }
             });
@@ -316,11 +338,21 @@ public class MainActivity extends Activity {
         }
 
         @android.webkit.JavascriptInterface
+        public void ready() {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    showLoading(false);
+                }
+            });
+        }
+
+        @android.webkit.JavascriptInterface
         public void saveTile() {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    askSaveTile();
+                    if (overlayMode) askSaveTile();
                 }
             });
         }
@@ -339,6 +371,31 @@ public class MainActivity extends Activity {
                     }
                 })
                 .show();
+    }
+
+    final Runnable loadingTimeout = new Runnable() {
+        @Override
+        public void run() {
+            loading.setVisibility(View.GONE);
+        }
+    };
+
+    void showLoading(boolean on) {
+        handler.removeCallbacks(loadingTimeout);
+        loading.setVisibility(on ? View.VISIBLE : View.GONE);
+        // Spätestens nach 8 Sekunden die Seite zeigen, egal was passiert
+        if (on) handler.postDelayed(loadingTimeout, 8000);
+    }
+
+    /** Kleine Vorschau-Clips der Vorschaubilder (Hover-Videos) gar nicht erst laden */
+    static boolean isPreviewClip(Uri u) {
+        String p = u.getPath();
+        if (p == null) return false;
+        p = p.toLowerCase();
+        if (!(p.endsWith(".mp4") || p.endsWith(".webm"))) return false;
+        String all = (u.getHost() + p).toLowerCase();
+        return all.contains("preview") || all.contains("thumb") || all.contains("trailer")
+                || all.contains("teaser") || all.contains("vidthumb") || p.endsWith("_fb.mp4");
     }
 
     final Runnable hideCursorR = new Runnable() {
@@ -380,6 +437,7 @@ public class MainActivity extends Activity {
 
     void goHome(boolean lock) {
         hideCustom();
+        showLoading(false);
         clearHistoryOnLoad = true;
         web.loadUrl(lock ? HOME + "?lock=1" : HOME);
     }
@@ -454,6 +512,24 @@ public class MainActivity extends Activity {
                 case KeyEvent.KEYCODE_DPAD_DOWN:
                     return true;
             }
+        }
+
+        if (overlayMode && !cursorMode && customView == null && !isHome(web.getUrl())
+                && (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER
+                || k == KeyEvent.KEYCODE_NUMPAD_ENTER || k == KeyEvent.KEYCODE_BUTTON_A)) {
+            // TV-Ansicht: OK kurz = öffnen, OK lange = Menü
+            if (a == KeyEvent.ACTION_DOWN) {
+                if (rep == 0) { okDown = true; okLong = false; }
+                else if (okDown && !okLong) { okLong = true; showMenu(); }
+            } else if (a == KeyEvent.ACTION_UP) {
+                if (okDown && !okLong) {
+                    web.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
+                    web.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER));
+                }
+                okDown = false;
+                okLong = false;
+            }
+            return true;
         }
 
         if (cursorMode) {
