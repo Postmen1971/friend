@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Start</title>
+<style>
+:root{--bg:#0e0f13;--card:#1b1d24;--card2:#252833;--txt:#f2f3f5;--mut:#9aa0ad;--acc:#ff6a3d;--focus:#ffffff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Roboto,sans-serif;font-size:18px}
+header{display:flex;justify-content:space-between;align-items:center;padding:22px 36px 4px}
+h1{margin:0;font-size:26px;font-weight:600}
+.hint{color:var(--mut);font-size:14px;padding:0 36px}
+.bar{display:flex;gap:16px}
+button,input{font:inherit;color:var(--txt)}
+.btn{background:var(--card2);border:3px solid transparent;border-radius:14px;padding:12px 22px;cursor:pointer}
+main{padding:4px 36px 48px}
+h2{font-size:19px;color:var(--mut);font-weight:500;margin:22px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
+.tile{background:var(--card);border:3px solid transparent;border-radius:16px;height:100px;padding:14px;text-align:left;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;position:relative}
+.tile .n{font-size:20px;font-weight:600}
+.tile .del{position:absolute;top:10px;right:14px;color:var(--acc);font-size:20px;display:none}
+body.edit .tile .del{display:block}
+.add{border-style:dashed;border-color:#3a3e4a;align-items:center;justify-content:center;color:var(--mut)}
+:focus{outline:none}
+.btn:focus,.tile:focus,input:focus{border-color:var(--focus);transform:scale(1.04);box-shadow:0 0 0 6px rgba(255,255,255,.12)}
+.tile,.btn{transition:transform .12s}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9}
+.overlay.on{display:flex}
+.box{background:var(--card);border-radius:20px;padding:26px;width:min(560px,92vw);max-height:96vh;overflow:auto}
+.box h3{margin:0 0 14px;font-size:22px}
+.box label{display:block;color:var(--mut);margin:14px 0 6px;font-size:18px}
+.box input{width:100%;background:var(--card2);border:3px solid transparent;border-radius:12px;padding:14px}
+.row{display:flex;gap:14px;margin-top:24px;justify-content:flex-end}
+.msg{color:var(--acc);min-height:28px;margin-top:10px;font-size:18px}
+.pinpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.pinpad .btn{padding:10px;font-size:22px}
+.dots{font-size:30px;letter-spacing:12px;text-align:center;min-height:40px}
+.empty{color:var(--mut);margin-top:40px}
+</style>
+</head>
+<body>
+<header>
+  <h1>TV Start</h1>
+  <div class="bar">
+    <button class="btn" id="editBtn">Bearbeiten</button>
+    <button class="btn" id="lockBtn">Sperren</button>
+  </div>
+</header>
+<div class="hint">Auf Webseiten: Steuerkreuz = Zeiger · OK = Klick · OK lange = Seite als Kachel speichern · ZURÜCK lange = hierher</div>
+<main id="main"></main>
+
+<!-- PIN -->
+<div class="overlay" id="pinOv"><div class="box">
+  <h3 id="pinTitle">PIN eingeben</h3>
+  <div class="dots" id="dots"></div>
+  <div class="pinpad" id="pad"></div>
+  <div class="msg" id="pinMsg"></div>
+</div></div>
+
+<!-- Kachel hinzufügen -->
+<div class="overlay" id="addOv"><div class="box">
+  <h3>Kachel hinzufügen</h3>
+  <label>Gruppe (z. B. Name der Seite)</label><input id="fGroup">
+  <label>Name der Kategorie</label><input id="fName">
+  <label>Adresse (URL)</label><input id="fUrl" inputmode="url" placeholder="https://">
+  <div class="msg" id="addMsg"></div>
+  <div class="row"><button class="btn" id="cancelAdd">Abbrechen</button><button class="btn" id="saveAdd">Speichern</button></div>
+</div></div>
+
+<script>
+const KEY='tvstart.tiles', PKEY='tvstart.pin', UKEY='tvstart.unlocked';
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const ss={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
+let tiles=JSON.parse(store.get(KEY)||'[]');
+const save=()=>store.set(KEY,JSON.stringify(tiles));
+const hash=s=>{let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return String(h)};
+
+function render(){
+  const m=document.getElementById('main');m.innerHTML='';
+  const groups={};
+  tiles.forEach((t,i)=>{const g=t.group||'Allgemein';(groups[g]=groups[g]||[]).push(Object.assign({},t,{i:i}))});
+  const names=Object.keys(groups);
+  if(!names.length){m.innerHTML='<p class="empty">Noch keine Kacheln. Mit „Bearbeiten“ → „+“ hinzufügen.</p>'}
+  names.forEach(g=>{
+    const h=document.createElement('h2');h.textContent=g;m.appendChild(h);
+    const grid=document.createElement('div');grid.className='grid';
+    groups[g].forEach(t=>{
+      const b=document.createElement('button');b.className='tile';
+      b.innerHTML='<span class="del">✕ löschen</span><span class="n"></span>';
+      b.querySelector('.n').textContent=t.name;
+      b.onclick=()=>{
+        if(document.body.classList.contains('edit')){
+          if(confirm('„'+t.name+'“ löschen?')){tiles.splice(t.i,1);save();render();focusFirst()}
+        } else location.href=t.url;
+      };
+      grid.appendChild(b);
+    });
+    m.appendChild(grid);
+  });
+  if(document.body.classList.contains('edit')){
+    const grid=document.createElement('div');grid.className='grid';grid.style.marginTop='28px';
+    const a=document.createElement('button');a.className='tile add';a.innerHTML='<span class="n">+ Kachel</span>';
+    a.onclick=openAdd;grid.appendChild(a);m.appendChild(grid);
+  }
+}
+
+/* Bearbeiten */
+document.getElementById('editBtn').onclick=()=>{
+  document.body.classList.toggle('edit');
+  document.getElementById('editBtn').textContent=document.body.classList.contains('edit')?'Fertig':'Bearbeiten';
+  render();
+};
+function openAdd(){
+  ['fGroup','fName','fUrl'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('addMsg').textContent='';
+  document.getElementById('addOv').classList.add('on');
+  document.getElementById('fGroup').focus();
+}
+document.getElementById('cancelAdd').onclick=()=>{document.getElementById('addOv').classList.remove('on');focusFirst()};
+document.getElementById('saveAdd').onclick=()=>{
+  const g=fGroup.value.trim(),n=fName.value.trim();let u=fUrl.value.trim();
+  if(!n||!u){document.getElementById('addMsg').textContent='Name und Adresse ausfüllen.';return}
+  if(!/^https?:\/\//i.test(u))u='https://'+u;
+  tiles.push({group:g,name:n,url:u});save();
+  document.getElementById('addOv').classList.remove('on');render();focusFirst();
+};
+
+/* PIN */
+let entry='',mode='check',first='';
+function showPin(m){
+  mode=m;entry='';first='';
+  document.getElementById('pinTitle').textContent=m==='set'?'Neue PIN festlegen (4 Ziffern)':'PIN eingeben';
+  document.getElementById('pinMsg').textContent='';drawDots();
+  document.getElementById('pinOv').classList.add('on');
+  document.querySelector('#pad .btn').focus();
+}
+function drawDots(){document.getElementById('dots').textContent='●'.repeat(entry.length)+'○'.repeat(4-entry.length)}
+function pinDone(){
+  const msg=document.getElementById('pinMsg');
+  if(mode==='set'){
+    if(!first){first=entry;entry='';drawDots();document.getElementById('pinTitle').textContent='PIN wiederholen';return}
+    if(first===entry){store.set(PKEY,hash(entry));unlock()}
+    else{msg.textContent='Stimmt nicht überein. Nochmal.';first='';entry='';drawDots();document.getElementById('pinTitle').textContent='Neue PIN festlegen (4 Ziffern)'}
+  } else {
+    if(hash(entry)===store.get(PKEY))unlock();
+    else{msg.textContent='Falsche PIN.';entry='';drawDots()}
+  }
+}
+function unlock(){ss.set(UKEY,'1');document.getElementById('pinOv').classList.remove('on');render();focusFirst()}
+(function buildPad(){
+  const pad=document.getElementById('pad');
+  ['1','2','3','4','5','6','7','8','9','⌫','0','OK'].forEach(k=>{
+    const b=document.createElement('button');b.className='btn';b.textContent=k;
+    b.onclick=()=>{
+      if(k==='⌫')entry=entry.slice(0,-1);
+      else if(k==='OK'){if(entry.length===4)pinDone();return}
+      else if(entry.length<4)entry+=k;
+      drawDots();if(entry.length===4)pinDone();
+    };
+    pad.appendChild(b);
+  });
+})();
+document.getElementById('lockBtn').onclick=()=>{ss.del(UKEY);showPin('check')};
+
+/* Steuerkreuz-Navigation */
+function focusables(){
+  const ov=document.querySelector('.overlay.on');
+  const root=ov||document;
+  return [...root.querySelectorAll('button,input')].filter(e=>e.offsetParent!==null);
+}
+function focusFirst(){const f=focusables();const t=f.find(e=>e.classList.contains('tile'))||f[0];t&&t.focus()}
+document.addEventListener('keydown',e=>{
+  const dirs={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+  const d=dirs[e.key];if(!d)return;
+  const cur=document.activeElement;
+  if(cur&&cur.tagName==='INPUT'&&d[0]!==0)return; // links/rechts im Textfeld erlauben
+  const list=focusables();if(!list.length)return;
+  if(!list.includes(cur)){list[0].focus();e.preventDefault();return}
+  const r=cur.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  let best=null,bd=Infinity;
+  list.forEach(el=>{
+    if(el===cur)return;
+    const q=el.getBoundingClientRect(),x=q.left+q.width/2,y=q.top+q.height/2;
+    const dx=x-cx,dy=y-cy;
+    if(d[0]&&Math.sign(dx)!==d[0]||d[0]&&Math.abs(dx)<2)return;
+    if(d[1]&&Math.sign(dy)!==d[1]||d[1]&&Math.abs(dy)<2)return;
+    const main=d[0]?Math.abs(dx):Math.abs(dy),side=d[0]?Math.abs(dy):Math.abs(dx);
+    const score=main+side*2.5;
+    if(score<bd){bd=score;best=el}
+  });
+  if(best){best.focus();best.scrollIntoView({block:'nearest',behavior:'smooth'});e.preventDefault()}
+});
+
+/* Schnittstellen für die App */
+window.tvAddTiles=function(list){
+  (list||[]).forEach(t=>{if(t&&t.url)tiles.push({group:t.group||'',name:t.name||t.url,url:t.url})});
+  save();
+  if(!document.getElementById('pinOv').classList.contains('on')){render();focusFirst()}
+};
+window.tvBack=function(){
+  if(document.getElementById('addOv').classList.contains('on')){document.getElementById('cancelAdd').click();return true}
+  if(document.body.classList.contains('edit')){document.getElementById('editBtn').click();focusFirst();return true}
+  return false;
+};
+
+/* Start */
+if(/[?&]lock=1/.test(location.search)){ss.del(UKEY);try{history.replaceState(null,'','index.html')}catch(e){}}
+if(!store.get(PKEY))showPin('set');
+else if(ss.get(UKEY)!=='1')showPin('check');
+else{render();focusFirst()}
+</script>
+</body>
+</html>

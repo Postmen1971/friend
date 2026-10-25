@@ -1,0 +1,426 @@
+package de.heim.tvstart;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.SystemClock;
+import android.text.InputType;
+import android.view.InputDevice;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.CookieManager;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.InputStream;
+import java.util.HashMap;
+
+public class MainActivity extends Activity {
+
+    static final String HOST = "tvstart.local";
+    static final String HOME = "https://" + HOST + "/index.html";
+
+    FrameLayout root;
+    WebView web;
+    CursorView cursor;
+    View customView;
+    WebChromeClient.CustomViewCallback customCb;
+
+    boolean cursorMode = false;
+    boolean hintShown = false;
+    boolean backLong = false, okDown = false, okLong = false;
+    boolean clearHistoryOnLoad = false;
+    float density;
+    final Handler handler = new Handler();
+
+    @Override
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        density = getResources().getDisplayMetrics().density;
+
+        root = new FrameLayout(this);
+        root.setBackgroundColor(Color.rgb(14, 15, 19));
+        web = new WebView(this);
+        root.addView(web, new FrameLayout.LayoutParams(-1, -1));
+        cursor = new CursorView(this);
+        cursor.setVisibility(View.GONE);
+        root.addView(cursor, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
+
+        WebSettings s = web.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setDatabaseEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(true);
+        s.setBuiltInZoomControls(false);
+        s.setSupportMultipleWindows(false);
+        s.setJavaScriptCanOpenWindowsAutomatically(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        s.setUserAgentString(s.getUserAgentString().replace("; wv", ""));
+
+        CookieManager cm = CookieManager.getInstance();
+        cm.setAcceptCookie(true);
+        cm.setAcceptThirdPartyCookies(web, true);
+
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView v, String url) {
+                // Nur Webseiten innerhalb der App öffnen, keine fremden Apps/Stores starten
+                return !(url.startsWith("http://") || url.startsWith("https://"));
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
+                Uri u = r.getUrl();
+                if (!HOST.equals(u.getHost())) return null;
+                String p = u.getPath();
+                if (p == null || p.equals("/") || p.isEmpty()) p = "/index.html";
+                p = p.substring(1);
+                String mime = "text/html";
+                if (p.endsWith(".js")) mime = "application/javascript";
+                else if (p.endsWith(".css")) mime = "text/css";
+                else if (p.endsWith(".png")) mime = "image/png";
+                try {
+                    InputStream in = getAssets().open(p);
+                    return new WebResourceResponse(mime, "UTF-8", in);
+                } catch (Exception e) {
+                    return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found",
+                            new HashMap<String, String>(), null);
+                }
+            }
+
+            @Override
+            public void onPageStarted(WebView v, String url, android.graphics.Bitmap fav) {
+                updateMode(url);
+            }
+
+            @Override
+            public void doUpdateVisitedHistory(WebView v, String url, boolean reload) {
+                updateMode(url);
+            }
+
+            @Override
+            public void onPageFinished(WebView v, String url) {
+                updateMode(url);
+                if (isHome(url)) {
+                    if (clearHistoryOnLoad) {
+                        clearHistoryOnLoad = false;
+                        web.clearHistory();
+                    }
+                    flushPending();
+                }
+            }
+        });
+
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onShowCustomView(View view, CustomViewCallback cb) {
+                if (customView != null) { cb.onCustomViewHidden(); return; }
+                customView = view;
+                customCb = cb;
+                root.addView(view, 1, new FrameLayout.LayoutParams(-1, -1));
+            }
+
+            @Override
+            public void onHideCustomView() {
+                hideCustom();
+            }
+        });
+
+        web.setFocusable(true);
+        web.setFocusableInTouchMode(true);
+        web.loadUrl(HOME);
+        web.requestFocus();
+    }
+
+    boolean isHome(String url) {
+        return url != null && url.startsWith("https://" + HOST);
+    }
+
+    void updateMode(String url) {
+        boolean c = !isHome(url);
+        if (c == cursorMode) return;
+        cursorMode = c;
+        cursor.setVisibility(c ? View.VISIBLE : View.GONE);
+        if (c && !hintShown) {
+            hintShown = true;
+            Toast.makeText(this,
+                    "Steuerkreuz = Zeiger · OK = Klick\nOK lange = Seite als Kachel speichern\nZURÜCK lange = Startseite",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    void hideCustom() {
+        if (customView == null) return;
+        root.removeView(customView);
+        customView = null;
+        if (customCb != null) customCb.onCustomViewHidden();
+        customCb = null;
+    }
+
+    void goHome(boolean lock) {
+        hideCustom();
+        clearHistoryOnLoad = true;
+        web.loadUrl(lock ? HOME + "?lock=1" : HOME);
+    }
+
+    void doBack() {
+        if (customView != null) { hideCustom(); return; }
+        if (isHome(web.getUrl())) {
+            web.evaluateJavascript("(window.tvBack?window.tvBack():false)", new ValueCallback<String>() {
+                @Override
+                public void onReceiveValue(String v) {
+                    if ("true".equals(v)) return;
+                    if (web.canGoBack()) web.goBack(); else finish();
+                }
+            });
+            return;
+        }
+        if (web.canGoBack()) web.goBack(); else goHome(false);
+    }
+
+    void js(String code) {
+        web.evaluateJavascript(code, null);
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        int k = e.getKeyCode();
+        int a = e.getAction();
+        int rep = e.getRepeatCount();
+
+        if (k == KeyEvent.KEYCODE_BACK) {
+            if (a == KeyEvent.ACTION_DOWN) {
+                if (rep > 0 && !backLong) { backLong = true; goHome(false); }
+            } else if (a == KeyEvent.ACTION_UP) {
+                if (backLong) backLong = false; else doBack();
+            }
+            return true;
+        }
+
+        if (a == KeyEvent.ACTION_DOWN && rep == 0) {
+            switch (k) {
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                case KeyEvent.KEYCODE_MEDIA_PLAY:
+                case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                    js("(function(){var v=document.querySelector('video');if(v){if(v.paused)v.play();else v.pause();}})()");
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                    js("(function(){var v=document.querySelector('video');if(v)v.currentTime+=10;})()");
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_REWIND:
+                    js("(function(){var v=document.querySelector('video');if(v)v.currentTime-=10;})()");
+                    return true;
+            }
+        }
+
+        if (cursorMode) {
+            switch (k) {
+                case KeyEvent.KEYCODE_DPAD_UP:
+                    if (a == KeyEvent.ACTION_DOWN) move(0, -1, rep);
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    if (a == KeyEvent.ACTION_DOWN) move(0, 1, rep);
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    if (a == KeyEvent.ACTION_DOWN) move(-1, 0, rep);
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    if (a == KeyEvent.ACTION_DOWN) move(1, 0, rep);
+                    return true;
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                case KeyEvent.KEYCODE_BUTTON_A:
+                    if (a == KeyEvent.ACTION_DOWN) {
+                        if (rep == 0) { okDown = true; okLong = false; }
+                        else if (okDown && !okLong) { okLong = true; askSaveTile(); }
+                    } else if (a == KeyEvent.ACTION_UP) {
+                        if (okDown && !okLong) click();
+                        okDown = false;
+                        okLong = false;
+                    }
+                    return true;
+            }
+        }
+        return super.dispatchKeyEvent(e);
+    }
+
+    void move(int dx, int dy, int rep) {
+        float step = Math.min(5 + rep * 2.5f, 36) * density;
+        float w = cursor.getWidth(), h = cursor.getHeight();
+        float nx = cursor.cx + dx * step, ny = cursor.cy + dy * step;
+        float sx = 0, sy = 0;
+        if (nx < 0) { sx = nx; nx = 0; }
+        if (nx > w - 1) { sx = nx - (w - 1); nx = w - 1; }
+        if (ny < 0) { sy = ny; ny = 0; }
+        if (ny > h - 1) { sy = ny - (h - 1); ny = h - 1; }
+        cursor.cx = nx;
+        cursor.cy = ny;
+        cursor.invalidate();
+        if ((sx != 0 || sy != 0) && customView == null) {
+            int jx = (int) (sx * 4 / density), jy = (int) (sy * 4 / density);
+            js("window.scrollBy(" + jx + "," + jy + ")");
+        }
+    }
+
+    void click() {
+        final float x = cursor.cx, y = cursor.cy;
+        final long t = SystemClock.uptimeMillis();
+        MotionEvent down = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, x, y, 0);
+        down.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        root.dispatchTouchEvent(down);
+        down.recycle();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                MotionEvent up = MotionEvent.obtain(t, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, x, y, 0);
+                up.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+                root.dispatchTouchEvent(up);
+                up.recycle();
+            }
+        }, 60);
+    }
+
+    void askSaveTile() {
+        final String url = web.getUrl();
+        if (url == null || isHome(url)) return;
+        String host = Uri.parse(url).getHost();
+        if (host == null) host = "";
+        if (host.startsWith("www.")) host = host.substring(4);
+        String title = web.getTitle();
+        if (title == null || title.trim().isEmpty()) title = host;
+        if (title.length() > 40) title = title.substring(0, 40);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (20 * density);
+        box.setPadding(pad, pad / 2, pad, 0);
+        TextView l1 = new TextView(this); l1.setText("Gruppe");
+        final EditText g = new EditText(this); g.setSingleLine(); g.setText(host);
+        g.setInputType(InputType.TYPE_CLASS_TEXT);
+        TextView l2 = new TextView(this); l2.setText("Name der Kachel");
+        final EditText n = new EditText(this); n.setSingleLine(); n.setText(title);
+        n.setInputType(InputType.TYPE_CLASS_TEXT);
+        box.addView(l1); box.addView(g); box.addView(l2); box.addView(n);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Diese Seite als Kachel speichern?")
+                .setView(box)
+                .setPositiveButton("Speichern", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        savePending(g.getText().toString().trim(), n.getText().toString().trim(), url);
+                    }
+                })
+                .setNegativeButton("Abbrechen", null)
+                .show();
+    }
+
+    void savePending(String group, String name, String url) {
+        try {
+            SharedPreferences p = getSharedPreferences("tv", Context.MODE_PRIVATE);
+            JSONArray arr = new JSONArray(p.getString("pending", "[]"));
+            JSONObject o = new JSONObject();
+            o.put("group", group);
+            o.put("name", name.isEmpty() ? url : name);
+            o.put("url", url);
+            arr.put(o);
+            p.edit().putString("pending", arr.toString()).apply();
+            Toast.makeText(this, "Gespeichert – erscheint auf der Startseite", Toast.LENGTH_SHORT).show();
+        } catch (Exception ignored) { }
+    }
+
+    void flushPending() {
+        SharedPreferences p = getSharedPreferences("tv", Context.MODE_PRIVATE);
+        String s = p.getString("pending", "[]");
+        if (s.equals("[]")) return;
+        s = s.replace(" ", " ").replace(" ", " ");
+        js("window.tvAddTiles&&window.tvAddTiles(" + s + ")");
+        p.edit().remove("pending").apply();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        web.onResume();
+    }
+
+    @Override
+    protected void onStop() {
+        // Beim Verlassen der App sofort sperren: zurück zur Startseite mit PIN-Abfrage
+        goHome(true);
+        web.onPause();
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        root.removeAllViews();
+        web.destroy();
+        super.onDestroy();
+    }
+
+    static class CursorView extends View {
+        float cx = -1, cy = -1;
+        final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+        final float d;
+
+        CursorView(Context c) {
+            super(c);
+            d = c.getResources().getDisplayMetrics().density;
+            fill.setColor(Color.argb(170, 255, 255, 255));
+            ring.setColor(Color.argb(220, 20, 20, 20));
+            ring.setStyle(Paint.Style.STROKE);
+            ring.setStrokeWidth(2.5f * d);
+            setClickable(false);
+            setFocusable(false);
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int ow, int oh) {
+            if (cx < 0) { cx = w / 2f; cy = h / 2f; }
+            if (cx > w) cx = w - 1;
+            if (cy > h) cy = h - 1;
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            return false;
+        }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            float r = 11 * d;
+            c.drawCircle(cx, cy, r, fill);
+            c.drawCircle(cx, cy, r, ring);
+            c.drawCircle(cx, cy, 2 * d, ring);
+        }
+    }
+}
