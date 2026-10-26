@@ -86,6 +86,20 @@ const DEFAULTS=[
   {group:'Seiten',name:'XNXX',url:'https://www.xnxx.com/tags'},
   {group:'Seiten',name:'Eporner',url:'https://www.eporner.com/categories/'}
 ];
+const DEFAULTS_LIVE=[
+  {group:'Live',name:'Chaturbate – Frauen',url:'https://chaturbate.com/female-cams/'},
+  {group:'Live',name:'Chaturbate – Paare',url:'https://chaturbate.com/couple-cams/'},
+  {group:'Live',name:'Chaturbate – Kategorien',url:'https://chaturbate.com/tags/'},
+  {group:'Live',name:'Stripchat',url:'https://stripchat.com/'},
+  {group:'Live',name:'Stripchat – Paare',url:'https://stripchat.com/couples'},
+  {group:'Live',name:'BongaCams',url:'https://bongacams.com/'},
+  {group:'Live',name:'CAM4',url:'https://www.cam4.com/'},
+  {group:'Live',name:'CamSoda',url:'https://www.camsoda.com/'}
+];
+if(!store.get('tvstart.defaults2')){
+  DEFAULTS_LIVE.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults2','1');
+}
 if(!store.get('tvstart.defaults1')){
   DEFAULTS.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults1','1');

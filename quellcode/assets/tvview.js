@@ -105,10 +105,13 @@ function gateVisible(){
 
 function inLink(e){return !!(e.closest&&e.closest('a[href]'))}
 /* Sieht die Adresse nach einer einzelnen Videoseite aus? */
+/* Übersichtsseiten (Startseite, Kategorien) sind nie eine Videoseite, auch wenn oben ein großes Vorschau-Video läuft */
+var urlList=/^\/?$|^\/(c|tags?|categor(y|ies)|channels?|pornstars?|models?)\/?|cams\/?$|^\/(couples|girls|guys|men|women|trans|female|male|popular|new|top)\/?$/i.test(location.pathname)||/[?&](c|tag|category)=/i.test(location.search);
 var urlVideo=/\/(videos?\/[^\/?#]+|watch\/|view_video|video[.\-_\d])|^\/\d{4,}\/?/i.test(location.pathname+location.search);
 
 /* Haupt-Player finden: groß, nicht Teil eines Vorschau-Links, und nur einer davon */
 function videoTarget(){
+  if(urlList)return null;
   var vw=innerWidth,c=[];
   var vs=document.querySelectorAll('video');
   for(var i=0;i<vs.length;i++){if(inLink(vs[i]))continue;var r=vs[i].getBoundingClientRect();if(r.width>vw*0.5&&r.height>150)c.push(vs[i])}
