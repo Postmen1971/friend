@@ -54,6 +54,24 @@ public class MainActivity extends Activity {
     boolean overlayMode = false;
     boolean tapAllowed = false;
     String tvview = "";
+    String defaultUA = "";
+
+    boolean mobileUA() {
+        return getSharedPreferences("tv", Context.MODE_PRIVATE).getBoolean("mobile", true);
+    }
+
+    /** Handy-Version: die Seiten liefern dann die leichte Mobil-Ansicht statt der schweren Desktop-Seite */
+    void applyUA() {
+        String ua = defaultUA;
+        if (mobileUA()) {
+            String chrome = "Chrome/130.0.0.0";
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("Chrome/[0-9.]+").matcher(defaultUA);
+            if (m.find()) chrome = m.group();
+            ua = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) "
+                    + chrome + " Mobile Safari/537.36";
+        }
+        web.getSettings().setUserAgentString(ua);
+    }
     boolean hintShown = false;
     boolean backLong = false, okDown = false, okLong = false;
     boolean clearHistoryOnLoad = false;
@@ -97,7 +115,8 @@ public class MainActivity extends Activity {
         s.setSupportMultipleWindows(false);
         s.setJavaScriptCanOpenWindowsAutomatically(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        s.setUserAgentString(s.getUserAgentString().replace("; wv", ""));
+        defaultUA = s.getUserAgentString().replace("; wv", "");
+        applyUA();
 
         CookieManager cm = CookieManager.getInstance();
         cm.setAcceptCookie(true);
@@ -364,14 +383,22 @@ public class MainActivity extends Activity {
 
     void showMenu() {
         if (isHome(web.getUrl())) return;
-        final String[] items = {"TV-Ansicht anzeigen", "Diese Seite als Kachel speichern", "Zur Startseite"};
+        final boolean mob = mobileUA();
+        final String[] items = {"TV-Ansicht anzeigen", "Diese Seite als Kachel speichern", "Zur Startseite",
+                mob ? "Zur Desktop-Version wechseln" : "Zur Handy-Version wechseln (schneller)"};
         new AlertDialog.Builder(this)
                 .setItems(items, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface d, int w) {
                         if (w == 0) js("window.__tvv_show&&window.__tvv_show()");
                         else if (w == 1) askSaveTile();
-                        else goHome(false);
+                        else if (w == 2) goHome(false);
+                        else {
+                            getSharedPreferences("tv", Context.MODE_PRIVATE).edit().putBoolean("mobile", !mob).apply();
+                            applyUA();
+                            web.reload();
+                            Toast.makeText(MainActivity.this, mob ? "Desktop-Version" : "Handy-Version", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 })
                 .show();
