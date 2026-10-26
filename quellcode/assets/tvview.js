@@ -1,6 +1,6 @@
 (function(){
 if(window.__tvv)return;window.__tvv=1;
-var B=window.TVApp||{overlay:function(){},playAt:function(){},saveTile:function(){},ready:function(){}};
+var B=window.TVApp||{overlay:function(){},playAt:function(){},saveTile:function(){},ready:function(){},videoMode:function(){}};
 var KEY='__tvf:'+location.href.split('#')[0],ticks=0,io=null;
 var on=false,manualOff=false,items=[],next=null,ov=null,cur=null,triedPlay=false;
 
@@ -81,31 +81,68 @@ function findNext(){
 }
 
 /* Altersabfrage / großes Hinweisfenster der Seite sichtbar? Dann erst bestätigen lassen. */
+/* Altersabfrage / Hinweisfenster mitten im Bild? Dann erst bestätigen lassen. */
 function gateVisible(){
-  var els=document.querySelectorAll('body *');
   var vw=innerWidth,vh=innerHeight;
-  for(var i=0;i<els.length&&i<4000;i++){
-    var e=els[i];if(e.id==='__tvov'||(e.closest&&e.closest('#__tvov')))continue;
-    var cs=getComputedStyle(e);
-    if(cs.position!=='fixed'||cs.display==='none'||cs.visibility==='hidden'||cs.opacity==='0')continue;
-    var r=e.getBoundingClientRect();
-    if(r.width<vw*0.3||r.height<vh*0.25)continue;
-    var t=(e.textContent||'').slice(0,3000);
-    if(/(\b18\b|18\+|age verification|i am 18|over 18|adult|altersverifi|über 18|volljährig|enter)/i.test(t))return true;
+  var pts=[[vw/2,vh/2],[vw/2,vh*0.35],[vw/2,vh*0.65]];
+  for(var k=0;k<pts.length;k++){
+    var e=document.elementFromPoint(pts[k][0],pts[k][1]);
+    while(e&&e!==document.body&&e!==document.documentElement){
+      if(e.id==='__tvov')return false;
+      var cs=getComputedStyle(e);
+      if(cs.position==='fixed'||cs.position==='sticky'||(parseInt(cs.zIndex)||0)>=100){
+        var r=e.getBoundingClientRect();
+        if(r.width>=vw*0.3&&r.height>=vh*0.2){
+          var t=(e.textContent||'').slice(0,3000);
+          if(/(\b18\b|18\+|age verification|i am 18|over 18|adult|altersverifi|über 18|volljährig|i agree|zustimmen|cookie)/i.test(t))return true;
+        }
+      }
+      e=e.parentElement;
+    }
   }
   return false;
 }
 
+function inLink(e){return !!(e.closest&&e.closest('a[href]'))}
+/* Sieht die Adresse nach einer einzelnen Videoseite aus? */
+var urlVideo=/\/(videos?\/[^\/?#]+|watch\/|view_video|video[.\-_\d])|^\/\d{4,}\/?/i.test(location.pathname+location.search);
+
+/* Haupt-Player finden: groß, nicht Teil eines Vorschau-Links, und nur einer davon */
 function videoTarget(){
-  var vw=innerWidth,best=null;
+  var vw=innerWidth,c=[];
   var vs=document.querySelectorAll('video');
-  for(var i=0;i<vs.length;i++){var r=vs[i].getBoundingClientRect();if(r.width>vw*0.4&&r.height>120){best=vs[i];break}}
-  if(!best){
-    var ps=document.querySelectorAll('[id*="player" i],[class*="player" i]');
-    for(var j=0;j<ps.length;j++){var q=ps[j].getBoundingClientRect();if(q.width>vw*0.4&&q.height>150&&q.top<innerHeight){best=ps[j];break}}
+  for(var i=0;i<vs.length;i++){if(inLink(vs[i]))continue;var r=vs[i].getBoundingClientRect();if(r.width>vw*0.5&&r.height>150)c.push(vs[i])}
+  if(c.length===1)return c[0];
+  if(c.length>1)return null;
+  var ps=document.querySelectorAll('[id*="player" i],[class*="player" i]');
+  for(var j=0;j<ps.length;j++){
+    var p=ps[j];if(inLink(p))continue;
+    var q=p.getBoundingClientRect();
+    if(q.width>vw*0.6&&q.height>180&&q.top<innerHeight*0.7&&(urlVideo||p.querySelector('video,iframe')))return p;
   }
-  return best;
+  return null;
 }
+
+/* Video im App-Vollbild zeigen (alles andere ausblenden) */
+var fsDone=false;
+css.textContent+=
+'html.__tvfs,html.__tvfs body{background:#000!important;overflow:hidden!important}'+
+'html.__tvfs body *{visibility:hidden!important}'+
+'html.__tvfs .__tvvid{visibility:visible!important;position:fixed!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important;z-index:2147483646!important;background:#000!important;object-fit:contain!important;transform:none!important}';
+function mainVideo(v){if(!v||v.tagName!=='VIDEO'||inLink(v))return false;var r=v.getBoundingClientRect();return r.width>innerWidth*0.3&&r.height>100}
+function fakeFullscreen(v){
+  if(fsDone)return;fsDone=true;
+  var a=v.parentElement;
+  while(a&&a!==document.body){var cs=getComputedStyle(a);if(cs.transform!=='none'||cs.filter!=='none'||cs.contain!=='none'||cs.willChange.indexOf('transform')>=0){a.style.setProperty('transform','none','important');a.style.setProperty('filter','none','important');a.style.setProperty('contain','none','important');a.style.setProperty('will-change','auto','important')}a=a.parentElement}
+  v.classList.add('__tvvid');document.documentElement.classList.add('__tvfs');
+  if(B.videoMode)B.videoMode(true);
+  v.controls=true;
+}
+document.addEventListener('playing',function(e){
+  var v=e.target;if(on||!mainVideo(v))return;
+  B.ready();
+  setTimeout(function(){if(!document.fullscreenElement&&!document.webkitFullscreenElement)fakeFullscreen(v)},400);
+},true);
 
 function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt)e.textContent=txt;return e}
 
@@ -194,20 +231,23 @@ window.addEventListener('pageshow',function(){if(on)B.overlay(true)});
 function check(force){
   ticks++;
   if(manualOff&&!force)return;
-  if(on)return;
-  if(ticks>=5)B.ready();
+  if(on||fsDone)return;
+  if(gateVisible()){B.ready();return}
   var v=videoTarget();
-  if(v){B.ready();
+  if(v){
+    /* Videoseite: "Lädt …" bleibt, bis das Video läuft */
     if(!triedPlay){triedPlay=true;
-      setTimeout(function(){var r=v.getBoundingClientRect();B.playAt(r.left+r.width/2,r.top+r.height/2)},900);}
+      setTimeout(function(){var t2=videoTarget()||v;var r=t2.getBoundingClientRect();B.playAt(r.left+r.width/2,r.top+r.height/2)},700);}
+    else if(ticks===6){var r2=v.getBoundingClientRect();B.playAt(r2.left+r2.width/2,r2.top+r2.height/2)}
     return;
   }
-  if(gateVisible()){B.ready();return}
+  if(urlVideo&&ticks<6)return;
   var it=collect();
   if(it.length>=8){items=it;next=findNext();show()}
+  else if(ticks>=5)B.ready();
 }
 
 /* Erst kurz warten, damit Player-Bereiche von Videoseiten schon da sind */
 var n=0,t;
-setTimeout(function(){check(false);t=setInterval(function(){n++;check(false);if(n>20)clearInterval(t)},1000)},1500);
+setTimeout(function(){check(false);t=setInterval(function(){n++;check(false);if(n>20)clearInterval(t)},1000)},1200);
 })();

@@ -52,7 +52,8 @@ public class MainActivity extends Activity {
 
     boolean cursorMode = false;
     boolean overlayMode = false;
-    boolean tapAllowed = false;
+    int tapsLeft = 0;
+    boolean videoFs = false;
     String tvview = "";
     String defaultUA = "";
 
@@ -171,7 +172,8 @@ public class MainActivity extends Activity {
             @Override
             public void onPageStarted(WebView v, String url, android.graphics.Bitmap fav) {
                 overlayMode = false;
-                tapAllowed = true;
+                tapsLeft = 2;
+                videoFs = false;
                 updateMode(url);
                 showLoading(!isHome(url));
             }
@@ -351,11 +353,23 @@ public class MainActivity extends Activity {
                 @Override
                 public void run() {
                     // Nur einmal pro Seite: Player der Seite antippen, damit das Video startet
-                    if (!tapAllowed || overlayMode || isHome(web.getUrl())) return;
-                    tapAllowed = false;
+                    if (tapsLeft <= 0 || overlayMode || videoFs || isHome(web.getUrl())) return;
+                    tapsLeft--;
                     @SuppressWarnings("deprecation")
                     float sc = web.getScale();
                     tapAt(x * sc, y * sc);
+                }
+            });
+        }
+
+        @android.webkit.JavascriptInterface
+        public void videoMode(final boolean on) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    videoFs = on;
+                    showLoading(false);
+                    cursor.setVisibility(on ? View.GONE : (cursorMode ? View.VISIBLE : View.GONE));
                 }
             });
         }
@@ -415,7 +429,7 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(loadingTimeout);
         loading.setVisibility(on ? View.VISIBLE : View.GONE);
         // Spätestens nach 8 Sekunden die Seite zeigen, egal was passiert
-        if (on) handler.postDelayed(loadingTimeout, 8000);
+        if (on) handler.postDelayed(loadingTimeout, 12000);
     }
 
     /** Kleine Vorschau-Clips der Vorschaubilder (Hover-Videos) gar nicht erst laden */
@@ -432,12 +446,12 @@ public class MainActivity extends Activity {
     final Runnable hideCursorR = new Runnable() {
         @Override
         public void run() {
-            if (customView != null) cursor.setVisibility(View.GONE);
+            if (customView != null || videoFs) cursor.setVisibility(View.GONE);
         }
     };
 
     void showCursorBriefly() {
-        if (customView == null) return;
+        if (customView == null && !videoFs) return;
         cursor.setVisibility(View.VISIBLE);
         handler.removeCallbacks(hideCursorR);
         handler.postDelayed(hideCursorR, 3000);
@@ -523,7 +537,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        if (customView != null) {
+        if (customView != null || videoFs) {
             // Vollbild-Video: OK = Pause/Weiter, links/rechts = 10 s spulen
             switch (k) {
                 case KeyEvent.KEYCODE_DPAD_CENTER:
