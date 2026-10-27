@@ -96,6 +96,23 @@ const DEFAULTS_LIVE=[
   {group:'Live',name:'CAM4',url:'https://www.cam4.com/'},
   {group:'Live',name:'CamSoda',url:'https://www.camsoda.com/'}
 ];
+const DEFAULTS_FILME=[
+  {group:'Filme',name:'xHamster – Full Movies',url:'https://xhamster.com/search/full+movie'},
+  {group:'Filme',name:'Pornhub – Full Movies',url:'https://www.pornhub.com/video/search?search=full+movie'},
+  {group:'Filme',name:'SpankBang – Full Movies',url:'https://spankbang.com/s/full+movie/'},
+  {group:'Filme',name:'Eporner – Full Movies',url:'https://www.eporner.com/search/full-movie/'},
+  {group:'Filme',name:'XVideos – Full Movies',url:'https://www.xvideos.com/?k=full+movie'},
+  {group:'Filme',name:'xHamster – Deutsche Filme',url:'https://xhamster.com/search/german+full+movie'},
+  {group:'Filme (Abo)',name:'FunDorado',url:'https://www.fundorado.de/'},
+  {group:'Filme (Abo)',name:'Dorcel Vision',url:'https://www.dorcelvision.com/'},
+  {group:'Filme (Abo)',name:'XConfessions',url:'https://xconfessions.com/'},
+  {group:'Filme (Abo)',name:'Adult Time',url:'https://www.adulttime.com/'},
+  {group:'Filme (Abo)',name:'Erotik.com',url:'https://www.erotik.com/'}
+];
+if(!store.get('tvstart.defaults3')){
+  DEFAULTS_FILME.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults3','1');
+}
 if(!store.get('tvstart.defaults2')){
   DEFAULTS_LIVE.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults2','1');
