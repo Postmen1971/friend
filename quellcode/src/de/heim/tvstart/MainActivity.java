@@ -619,9 +619,11 @@ public class MainActivity extends Activity {
         if (nx > w - 1) { sx = nx - (w - 1); nx = w - 1; }
         if (ny < 0) { sy = ny; ny = 0; }
         if (ny > h - 1) { sy = ny - (h - 1); ny = h - 1; }
-        cursor.cx = nx;
-        cursor.cy = ny;
-        cursor.invalidate();
+        if (nx != cursor.cx || ny != cursor.cy) {
+            cursor.cx = nx;
+            cursor.cy = ny;
+            cursor.invalidate();
+        }
         if ((sx != 0 || sy != 0) && customView == null) {
             int jx = (int) (sx * 4 / density), jy = (int) (sy * 4 / density);
             js("window.scrollBy(" + jx + "," + jy + ")");

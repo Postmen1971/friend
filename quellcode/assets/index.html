@@ -247,6 +247,16 @@ document.addEventListener('keydown',e=>{
   if(best){best.focus();best.scrollIntoView({block:'nearest',behavior:'smooth'});e.preventDefault()}
 });
 
+/* Verbindungen zu den Kachel-Seiten vorab aufbauen (DNS + TLS), damit der erste Klick schneller ist */
+function preconnect(){
+  const done={};
+  tiles.slice().sort((a,b)=>(b.count||0)-(a.count||0)).slice(0,12).forEach(t=>{
+    let o;try{o=new URL(t.url).origin}catch(e){return}
+    if(done[o])return;done[o]=1;
+    ['dns-prefetch','preconnect'].forEach(r=>{const l=document.createElement('link');l.rel=r;l.href=o;l.crossOrigin='anonymous';document.head.appendChild(l)});
+  });
+}
+setTimeout(preconnect,800);
 /* Schnittstellen für die App */
 window.tvVersion=function(v){document.getElementById('ver').textContent='Version '+v};
 window.tvAddTiles=function(list){

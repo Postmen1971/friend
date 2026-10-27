@@ -2,7 +2,7 @@
 if(window.__tvv)return;window.__tvv=1;
 var B=window.TVApp||{overlay:function(){},playAt:function(){},saveTile:function(){},ready:function(){},videoMode:function(){}};
 var KEY='__tvf:'+location.href.split('#')[0],ticks=0,io=null;
-var on=false,manualOff=false,items=[],next=null,ov=null,cur=null,triedPlay=false;
+var pauseT=null,on=false,manualOff=false,items=[],next=null,ov=null,cur=null,triedPlay=false;
 
 var css=document.createElement('style');
 css.textContent=
@@ -188,6 +188,9 @@ function show(){
   document.documentElement.classList.add('__tvon');
   /* Seite im Hintergrund anhalten (kein weiteres Nachladen), danach erst eigene Bilder laden */
   try{window.stop()}catch(e){}
+  /* Zeitschleifen der versteckten Seite beenden (spart Rechenleistung beim Scrollen) */
+  try{var mx=setTimeout(function(){},0);for(var i=1;i<=mx;i++){clearTimeout(i);clearInterval(i)}}catch(e){}
+  startPause();
   render();B.overlay(true);
 }
 function hide(){
@@ -201,7 +204,7 @@ function activate(e){
   if(!e)return;
   var act=e.getAttribute('data-act');
   if(act==='save'){B.saveTile();return}
-  if(act==='orig'){manualOff=true;hide();return}
+  if(act==='orig'){try{sessionStorage.setItem('__tvoff:'+location.href,'1')}catch(x){}hide();location.reload();return}
   var h=e.getAttribute('data-h');
   if(h){try{sessionStorage.setItem(KEY,h)}catch(x){}
     var n=e.querySelector('.n');if(n)n.textContent='Lädt …';location.href=h}
@@ -224,11 +227,15 @@ window.addEventListener('keydown',function(ev){
   if(best)focus(best);
 },true);
 
-setInterval(function(){
-  if(on){var vs=document.querySelectorAll('video');for(var i=0;i<vs.length;i++){try{if(!vs[i].paused)vs[i].pause()}catch(e){}}}
-},1000);
+function startPause(){
+  if(pauseT)return;
+  pauseT=setInterval(function(){
+    if(on){var vs=document.querySelectorAll('video');for(var i=0;i<vs.length;i++){try{if(!vs[i].paused)vs[i].pause()}catch(e){}}}
+  },2000);
+}
 
 window.__tvv_show=function(){manualOff=false;check(true)};
+try{if(sessionStorage.getItem('__tvoff:'+location.href)){sessionStorage.removeItem('__tvoff:'+location.href);manualOff=true;B.ready()}}catch(e){}
 window.addEventListener('pageshow',function(){if(on)B.overlay(true)});
 
 function check(force){
