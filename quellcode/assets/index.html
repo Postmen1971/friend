@@ -147,6 +147,16 @@ const DEFAULTS_JP2=[
   {group:'Japan',name:'Eporner – Japan unzensiert',url:'https://www.eporner.com/search/japanese-uncensored/'},
   {group:'Japan',name:'XVideos – Japan unzensiert',url:'https://www.xvideos.com/?k=japanese+uncensored'}
 ];
+const DEFAULTS_NS=[
+  {group:'Fetisch',name:'xHamster – Natursekt',url:'https://xhamster.com/search/pissing'},
+  {group:'Fetisch',name:'SpankBang – Natursekt',url:'https://spankbang.com/s/pissing/'},
+  {group:'Fetisch',name:'Eporner – Natursekt',url:'https://www.eporner.com/search/pissing/'},
+  {group:'Fetisch',name:'XVideos – Natursekt',url:'https://www.xvideos.com/?k=pissing'}
+];
+if(!store.get('tvstart.defaults7')){
+  DEFAULTS_NS.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults7','1');
+}
 if(!store.get('tvstart.defaults6')){
   DEFAULTS_JP2.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults6','1');
