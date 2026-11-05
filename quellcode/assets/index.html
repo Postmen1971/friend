@@ -122,6 +122,29 @@ const DEFAULTS_MEHR=[
   {group:'Soft & Erotik',name:'SpankBang – Romantisch',url:'https://spankbang.com/s/romantic/'},
   {group:'Soft & Erotik',name:'Eporner – Erotik',url:'https://www.eporner.com/search/erotic/'}
 ];
+const DEFAULTS_WELT=[
+  {group:'Japan',name:'xHamster – Japanisch',url:'https://xhamster.com/search/japanese'},
+  {group:'Japan',name:'Pornhub – Japanisch',url:'https://www.pornhub.com/video/search?search=japanese'},
+  {group:'Japan',name:'SpankBang – Japanisch',url:'https://spankbang.com/s/japanese/'},
+  {group:'Japan',name:'Eporner – Japanisch',url:'https://www.eporner.com/search/japanese/'},
+  {group:'Japan',name:'xHamster – Japan unzensiert',url:'https://xhamster.com/search/japanese+uncensored'},
+  {group:'Japan (Abo, unzensiert)',name:'Caribbeancom',url:'https://en.caribbeancom.com/'},
+  {group:'Japan (Abo, unzensiert)',name:'1Pondo',url:'https://en.1pondo.tv/'},
+  {group:'Japan (Abo, unzensiert)',name:'HEYZO',url:'https://en.heyzo.com/'},
+  {group:'Thai',name:'xHamster – Thai',url:'https://xhamster.com/search/thai'},
+  {group:'Thai',name:'Pornhub – Thai',url:'https://www.pornhub.com/video/search?search=thai'},
+  {group:'Thai',name:'SpankBang – Thai',url:'https://spankbang.com/s/thai/'},
+  {group:'Thai',name:'Eporner – Thai',url:'https://www.eporner.com/search/thai/'},
+  {group:'Russisch',name:'xHamster – Russisch',url:'https://xhamster.com/search/russian'},
+  {group:'Russisch',name:'Pornhub – Russisch',url:'https://www.pornhub.com/video/search?search=russian'},
+  {group:'Russisch',name:'SpankBang – Russisch',url:'https://spankbang.com/s/russian/'},
+  {group:'Russisch',name:'Eporner – Russisch',url:'https://www.eporner.com/search/russian/'},
+  {group:'Russisch',name:'XVideos – Russisch',url:'https://www.xvideos.com/?k=russian'}
+];
+if(!store.get('tvstart.defaults5')){
+  DEFAULTS_WELT.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults5','1');
+}
 if(!store.get('tvstart.defaults4')){
   DEFAULTS_MEHR.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults4','1');
