@@ -153,6 +153,18 @@ const DEFAULTS_NS=[
   {group:'Fetisch',name:'Eporner – Natursekt',url:'https://www.eporner.com/search/pissing/'},
   {group:'Fetisch',name:'XVideos – Natursekt',url:'https://www.xvideos.com/?k=pissing'}
 ];
+const DEFAULTS_BI=[
+  {group:'Bi',name:'xHamster – Bi',url:'https://xhamster.com/search/bisexual'},
+  {group:'Bi',name:'Pornhub – Bi',url:'https://www.pornhub.com/video/search?search=bisexual'},
+  {group:'Bi',name:'SpankBang – Bi',url:'https://spankbang.com/s/bisexual/'},
+  {group:'Bi',name:'Eporner – Bi',url:'https://www.eporner.com/search/bisexual/'},
+  {group:'Bi',name:'XVideos – Bi',url:'https://www.xvideos.com/?k=bisexual'},
+  {group:'Bi',name:'xHamster – Bi MMF',url:'https://xhamster.com/search/bisexual+mmf'}
+];
+if(!store.get('tvstart.defaults8')){
+  DEFAULTS_BI.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults8','1');
+}
 if(!store.get('tvstart.defaults7')){
   DEFAULTS_NS.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults7','1');
