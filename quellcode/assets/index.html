@@ -184,6 +184,36 @@ const DEFAULTS_LAENDER=[
   {group:'Länder',name:'Indisch – Pornhub',url:'https://www.pornhub.com/video/search?search=indian'},
   {group:'Länder',name:'Brasileirinhas (Brasilien)',url:'https://www.brasileirinhas.com.br/'}
 ];
+const DEFAULTS_MEHRL=[
+  {group:'Asia',name:'Asiatisch – xHamster',url:'https://xhamster.com/search/asian'},
+  {group:'Asia',name:'Asiatisch – Pornhub',url:'https://www.pornhub.com/video/search?search=asian'},
+  {group:'Asia',name:'Asiatisch – SpankBang',url:'https://spankbang.com/s/asian/'},
+  {group:'Asia',name:'Asiatisch – Eporner',url:'https://www.eporner.com/search/asian/'},
+  {group:'Asia',name:'Asiatisch – XVideos',url:'https://www.xvideos.com/?k=asian'},
+  {group:'Asia',name:'Chinesisch – xHamster',url:'https://xhamster.com/search/chinese'},
+  {group:'Asia',name:'Philippinisch – xHamster',url:'https://xhamster.com/search/filipina'},
+  {group:'Asia',name:'Vietnamesisch – xHamster',url:'https://xhamster.com/search/vietnamese'},
+  {group:'Asia',name:'Indonesisch – xHamster',url:'https://xhamster.com/search/indonesian'},
+  {group:'Osteuropa',name:'Ukrainisch – xHamster',url:'https://xhamster.com/search/ukrainian'},
+  {group:'Osteuropa',name:'Ukrainisch – Pornhub',url:'https://www.pornhub.com/video/search?search=ukrainian'},
+  {group:'Osteuropa',name:'Ukrainisch – SpankBang',url:'https://spankbang.com/s/ukrainian/'},
+  {group:'Osteuropa',name:'Ukrainisch – Eporner',url:'https://www.eporner.com/search/ukrainian/'},
+  {group:'Osteuropa',name:'Ukrainisch – XVideos',url:'https://www.xvideos.com/?k=ukrainian'},
+  {group:'Osteuropa',name:'Rumänisch – xHamster',url:'https://xhamster.com/search/romanian'},
+  {group:'Osteuropa',name:'Ungarisch – xHamster',url:'https://xhamster.com/search/hungarian'},
+  {group:'Osteuropa',name:'Russisch Amateur – xHamster',url:'https://xhamster.com/search/russian+amateur'},
+  {group:'Osteuropa',name:'Osteuropa – xHamster',url:'https://xhamster.com/search/eastern+european'},
+  {group:'Brasilien',name:'Brasilianisch – xHamster',url:'https://xhamster.com/search/brazilian'},
+  {group:'Brasilien',name:'Brasilianisch – Pornhub',url:'https://www.pornhub.com/video/search?search=brazilian'},
+  {group:'Brasilien',name:'Brasilianisch – SpankBang',url:'https://spankbang.com/s/brazilian/'},
+  {group:'Brasilien',name:'Brasilianisch – Eporner',url:'https://www.eporner.com/search/brazilian/'},
+  {group:'Brasilien',name:'Brasilianisch – XVideos',url:'https://www.xvideos.com/?k=brazilian'},
+  {group:'Brasilien',name:'Brasileirinhas (Abo)',url:'https://www.brasileirinhas.com.br/'}
+];
+if(!store.get('tvstart.defaults10')){
+  DEFAULTS_MEHRL.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults10','1');
+}
 if(!store.get('tvstart.defaults9')){
   DEFAULTS_LAENDER.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults9','1');
