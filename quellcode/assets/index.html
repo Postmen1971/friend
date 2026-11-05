@@ -341,6 +341,11 @@ if(!store.get('tvstart.layout4')){
   DEFAULTS_V4.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.layout4','1');
 }
+if(!store.get('tvstart.layout5')){
+  const d={group:'Deutsch',name:'Porno von nebenan',url:'https://www.porno-von-nebenan.net/video/#tvall=https%3A%2F%2Fwww.porno-von-nebenan.net%2Fvideo%2F'};
+  if(!tiles.some(t=>t.url===d.url))tiles.push(d);
+  save();store.set('tvstart.layout5','1');
+}
 const hash=s=>{let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return String(h)};
 
 function render(){
