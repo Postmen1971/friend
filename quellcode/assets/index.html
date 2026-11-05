@@ -161,6 +161,33 @@ const DEFAULTS_BI=[
   {group:'Bi',name:'XVideos – Bi',url:'https://www.xvideos.com/?k=bisexual'},
   {group:'Bi',name:'xHamster – Bi MMF',url:'https://xhamster.com/search/bisexual+mmf'}
 ];
+const DEFAULTS_LAENDER=[
+  {group:'Länder',name:'Deutsch – xHamster',url:'https://xhamster.com/search/german'},
+  {group:'Länder',name:'Deutsch – Pornhub',url:'https://www.pornhub.com/video/search?search=german'},
+  {group:'Länder',name:'Französisch – xHamster',url:'https://xhamster.com/search/french'},
+  {group:'Länder',name:'Französisch – Pornhub',url:'https://www.pornhub.com/video/search?search=french'},
+  {group:'Länder',name:'Italienisch – xHamster',url:'https://xhamster.com/search/italian'},
+  {group:'Länder',name:'Italienisch – Pornhub',url:'https://www.pornhub.com/video/search?search=italian'},
+  {group:'Länder',name:'Spanisch – xHamster',url:'https://xhamster.com/search/spanish'},
+  {group:'Länder',name:'Spanisch – Pornhub',url:'https://www.pornhub.com/video/search?search=spanish'},
+  {group:'Länder',name:'Brasilianisch – xHamster',url:'https://xhamster.com/search/brazilian'},
+  {group:'Länder',name:'Brasilianisch – Pornhub',url:'https://www.pornhub.com/video/search?search=brazilian'},
+  {group:'Länder',name:'Tschechisch – xHamster',url:'https://xhamster.com/search/czech'},
+  {group:'Länder',name:'Tschechisch – Pornhub',url:'https://www.pornhub.com/video/search?search=czech'},
+  {group:'Länder',name:'Polnisch – xHamster',url:'https://xhamster.com/search/polish'},
+  {group:'Länder',name:'Polnisch – Pornhub',url:'https://www.pornhub.com/video/search?search=polish'},
+  {group:'Länder',name:'Latina – xHamster',url:'https://xhamster.com/search/latina'},
+  {group:'Länder',name:'Latina – Pornhub',url:'https://www.pornhub.com/video/search?search=latina'},
+  {group:'Länder',name:'Koreanisch – xHamster',url:'https://xhamster.com/search/korean'},
+  {group:'Länder',name:'Koreanisch – Pornhub',url:'https://www.pornhub.com/video/search?search=korean'},
+  {group:'Länder',name:'Indisch – xHamster',url:'https://xhamster.com/search/indian'},
+  {group:'Länder',name:'Indisch – Pornhub',url:'https://www.pornhub.com/video/search?search=indian'},
+  {group:'Länder',name:'Brasileirinhas (Brasilien)',url:'https://www.brasileirinhas.com.br/'}
+];
+if(!store.get('tvstart.defaults9')){
+  DEFAULTS_LAENDER.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults9','1');
+}
 if(!store.get('tvstart.defaults8')){
   DEFAULTS_BI.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults8','1');
