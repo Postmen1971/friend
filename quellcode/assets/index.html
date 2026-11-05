@@ -250,6 +250,42 @@ if(!store.get('tvstart.defaults1')){
   DEFAULTS.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults1','1');
 }
+/* Neue Ordnung: ein Knopf pro Seite, nur kostenlose Anbieter. Alte Vorgabe-Kacheln werden ersetzt, eigene Kacheln bleiben. */
+const DEFAULTS_V2=[
+  {group:'Videos',name:'xHamster',url:'https://xhamster.com/'},
+  {group:'Videos',name:'Pornhub',url:'https://www.pornhub.com/'},
+  {group:'Videos',name:'YouPorn',url:'https://www.youporn.com/'},
+  {group:'Videos',name:'RedTube',url:'https://www.redtube.com/'},
+  {group:'Videos',name:'Tube8',url:'https://www.tube8.com/'},
+  {group:'Videos',name:'Thumbzilla',url:'https://www.thumbzilla.com/'},
+  {group:'Videos',name:'SpankBang',url:'https://spankbang.com/'},
+  {group:'Videos',name:'XVideos',url:'https://www.xvideos.com/'},
+  {group:'Videos',name:'XNXX',url:'https://www.xnxx.com/'},
+  {group:'Videos',name:'Eporner',url:'https://www.eporner.com/'},
+  {group:'Videos',name:'Beeg',url:'https://beeg.com/'},
+  {group:'Soft & Erotik',name:'Bellesa',url:'https://www.bellesa.co/'},
+  {group:'Trans',name:'xHamster Trans',url:'https://xhamster.com/shemale'},
+  {group:'Trans',name:'Pornhub Trans',url:'https://www.pornhub.com/transgender'},
+  {group:'Live',name:'Chaturbate',url:'https://chaturbate.com/'},
+  {group:'Live',name:'Stripchat',url:'https://stripchat.com/'},
+  {group:'Live',name:'BongaCams',url:'https://bongacams.com/'},
+  {group:'Live',name:'CAM4',url:'https://www.cam4.com/'},
+  {group:'Live',name:'CamSoda',url:'https://www.camsoda.com/'},
+  {group:'Fetisch (Einzelkauf, kein Abo)',name:'Clips4Sale',url:'https://www.clips4sale.com/'},
+  {group:'Fetisch (Einzelkauf, kein Abo)',name:'ManyVids',url:'https://www.manyvids.com/'}
+];
+if(!store.get('tvstart.layout2')){
+  const old=new Set([].concat(
+    typeof DEFAULTS!=='undefined'?DEFAULTS:[],typeof DEFAULTS_LIVE!=='undefined'?DEFAULTS_LIVE:[],
+    typeof DEFAULTS_FILME!=='undefined'?DEFAULTS_FILME:[],typeof DEFAULTS_MEHR!=='undefined'?DEFAULTS_MEHR:[],
+    typeof DEFAULTS_WELT!=='undefined'?DEFAULTS_WELT:[],typeof DEFAULTS_JP2!=='undefined'?DEFAULTS_JP2:[],
+    typeof DEFAULTS_NS!=='undefined'?DEFAULTS_NS:[],typeof DEFAULTS_BI!=='undefined'?DEFAULTS_BI:[],
+    typeof DEFAULTS_LAENDER!=='undefined'?DEFAULTS_LAENDER:[],typeof DEFAULTS_MEHRL!=='undefined'?DEFAULTS_MEHRL:[]
+  ).map(d=>d.url));
+  tiles=tiles.filter(t=>!old.has(t.url));
+  DEFAULTS_V2.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.layout2','1');
+}
 const hash=s=>{let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return String(h)};
 
 function render(){
