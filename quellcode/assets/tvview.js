@@ -7,7 +7,7 @@ var pauseT=null,on=false,manualOff=false,items=[],next=null,ov=null,cur=null,tri
 var css=document.createElement('style');
 css.textContent=
 'html.__tvon,html.__tvon body{overflow:hidden!important;background:#0e0f13!important}'+
-'html.__tvon body>*:not(#__tvov){display:none!important}'+
+'html.__tvon body>*:not(#__tvov){visibility:hidden!important}'+
 '#__tvov{position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;background:#0e0f13;color:#f2f3f5;font:16px system-ui,Roboto,sans-serif;overflow-y:auto;padding:14px 22px 40px;box-sizing:border-box;text-align:left}'+
 '#__tvov *{box-sizing:border-box}'+
 '#__tvov .h{display:flex;gap:10px;align-items:center;margin-bottom:12px}'+
@@ -217,45 +217,62 @@ function render(){
   var keepHref=cur&&cur.getAttribute('data-h');
   if(!keepHref){try{keepHref=sessionStorage.getItem(KEY)}catch(e){}}
   if(!ov){ov=el('div');ov.id='__tvov';document.body.appendChild(ov)}
-  ov.innerHTML='';
+  ov.innerHTML='';nextCard=null;
   var h=el('div','h');
   h.appendChild(el('div','t',clean(document.title)||location.hostname));
   var save=el('div','b','★ Als Kachel speichern');save.setAttribute('data-act','save');h.appendChild(save);
   var orig=el('div','b','Original-Seite');orig.setAttribute('data-act','orig');h.appendChild(orig);
   var hm=el('div','b','⌂ Start');hm.setAttribute('data-act','home');h.appendChild(hm);
   ov.appendChild(h);
-  var g=el('div','g');
-  items.forEach(function(it){
-    var c=el('div','c');c.setAttribute('data-h',it.href);
-    var im=el('div','im');im.setAttribute('data-img',it.img);
-    if(it.dur)im.appendChild(el('span','du',it.dur));
-    c.appendChild(im);c.appendChild(el('div','n',it.title||''));g.appendChild(c);
-  });
-  if(next){var nx=el('div','c nx','Nächste Seite ›');nx.setAttribute('data-h',next);g.appendChild(nx)}
-  ov.appendChild(g);
+  grid=el('div','g');
+  ov.appendChild(grid);
   ov.onclick=function(ev){var t=ev.target.closest&&ev.target.closest('.c,.b');if(t){focus(t);activate(t)}};
-  /* Vorschaubilder erst laden, wenn sie (fast) sichtbar sind */
+  ov.onscroll=function(){if(ov.scrollTop+ov.clientHeight>ov.scrollHeight-500)more()};
   if(io)io.disconnect();
-  var ims=ov.querySelectorAll('.im[data-img]');
-  function load(im){var u=im.getAttribute('data-img');if(u){var g=document.createElement('img');g.decoding='async';g.alt='';g.onerror=function(){this.remove()};g.src=u;im.insertBefore(g,im.firstChild);im.removeAttribute('data-img')}}
-  if(window.IntersectionObserver){
-    io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){load(x.target);io.unobserve(x.target)}})},{root:ov,rootMargin:'400px 0px'});
-    for(var i=0;i<ims.length;i++)io.observe(ims[i]);
-  } else {for(var j=0;j<ims.length;j++)load(ims[j])}
+  io=window.IntersectionObserver?new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){loadImg(x.target);io.unobserve(x.target)}})},{root:ov,rootMargin:'400px 0px'}):null;
+  addCards(items);
   var f=keepHref&&ov.querySelector('[data-h="'+keepHref.replace(/"/g,'\\"')+'"]');
   focus(f||ov.querySelector('.c')||save);
 }
 
+var grid=null,loadingMore=false,moreTries=0,nextCard=null;
+function loadImg(im){var u=im.getAttribute('data-img');if(u){var g=document.createElement('img');g.decoding='async';g.alt='';g.onerror=function(){this.remove()};g.src=u;im.insertBefore(g,im.firstChild);im.removeAttribute('data-img')}}
+function addCards(list){
+  if(nextCard){nextCard.remove();nextCard=null}
+  list.forEach(function(it){
+    var c=el('div','c');c.setAttribute('data-h',it.href);
+    var im=el('div','im');im.setAttribute('data-img',it.img);
+    if(it.dur)im.appendChild(el('span','du',it.dur));
+    c.appendChild(im);c.appendChild(el('div','n',it.title||''));grid.appendChild(c);
+    if(io)io.observe(im);else loadImg(im);
+  });
+  if(next){nextCard=el('div','c nx','Nächste Seite ›');nextCard.setAttribute('data-h',next);grid.appendChild(nextCard)}
+}
+/* Am Ende angekommen: versteckte Seite weiterscrollen, damit sie mehr Videos nachlädt */
+function more(){
+  if(loadingMore||!on||moreTries>=3)return;
+  loadingMore=true;
+  var wait=el('div','c nx','Lädt mehr …');grid.appendChild(wait);
+  var h=document.documentElement.scrollHeight;
+  window.scrollTo(0,h);
+  setTimeout(function(){window.scrollTo(0,document.documentElement.scrollHeight)},700);
+  setTimeout(function(){
+    wait.remove();
+    var seen={};items.forEach(function(x){seen[x.href]=1});
+    var fresh=collect().filter(function(x){return !seen[x.href]});
+    next=findNext()||next;
+    if(fresh.length){items=items.concat(fresh);addCards(fresh);moreTries=0}else{moreTries++;addCards([])}
+    loadingMore=false;
+  },1800);
+}
 function focus(e){if(cur)cur.classList.remove('f');cur=e;if(e){e.classList.add('f');
+  if(grid&&e.classList.contains('c')){var cs=grid.children,idx=Array.prototype.indexOf.call(cs,e);if(idx>=cs.length-6)more()}
   var r=e.getBoundingClientRect();if(r.top<60||r.bottom>innerHeight-20)ov.scrollTop+=r.top-innerHeight/2+r.height/2;}}
 
 function show(){
   if(on)return;on=true;
   document.documentElement.classList.add('__tvon');
   /* Seite im Hintergrund anhalten (kein weiteres Nachladen), danach erst eigene Bilder laden */
-  try{window.stop()}catch(e){}
-  /* Zeitschleifen der versteckten Seite beenden (spart Rechenleistung beim Scrollen) */
-  try{var mx=setTimeout(function(){},0);for(var i=1;i<=mx;i++){clearTimeout(i);clearInterval(i)}}catch(e){}
   startPause();
   render();B.overlay(true);
 }
