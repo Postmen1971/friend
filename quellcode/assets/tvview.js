@@ -22,6 +22,7 @@ css.textContent=
 '#__tvov .nx{display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;min-height:110px}'+
 '#__tvov .f{border-color:#ffffff!important}'+
 '#__tvov{-webkit-overflow-scrolling:auto;overscroll-behavior:contain;contain:strict}';
+if(window.__tvdev==='tablet')css.textContent+='#__tvov .g{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}#__tvov .n{font-size:12px}';
 (document.head||document.documentElement).appendChild(css);
 
 function abs(u){try{return new URL(u,location.href).href}catch(e){return ''}}

@@ -58,8 +58,14 @@ public class MainActivity extends Activity {
     String tvview = "";
     String defaultUA = "";
 
+    boolean isTV() {
+        android.app.UiModeManager um = (android.app.UiModeManager) getSystemService(Context.UI_MODE_SERVICE);
+        return um != null && um.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION;
+    }
+
+    /** TV: leichte Handy-Version. Tablet: Desktop-Version mit mehr Videos pro Seite. */
     boolean mobileUA() {
-        return getSharedPreferences("tv", Context.MODE_PRIVATE).getBoolean("mobile", true);
+        return getSharedPreferences("tv", Context.MODE_PRIVATE).getBoolean("mobile", isTV());
     }
 
     /** Handy-Version: die Seiten liefern dann die leichte Mobil-Ansicht statt der schweren Desktop-Seite */
@@ -187,7 +193,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageCommitVisible(WebView v, String url) {
                 // TV-Ansicht so früh wie möglich einbinden (wartet selbst, bis die Seite bereit ist)
-                if (!isHome(url)) { js(tvview); }
+                if (!isHome(url)) { js(deviceJs()); js(tvview); }
             }
 
             @Override
@@ -198,7 +204,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView v, String url) {
                 updateMode(url);
-                if (!isHome(url)) { js(tvview); }
+                if (!isHome(url)) { js(deviceJs()); js(tvview); }
                 if (isHome(url)) {
                     if (clearHistoryOnLoad) {
                         clearHistoryOnLoad = false;
@@ -317,6 +323,10 @@ public class MainActivity extends Activity {
                 tmp.destroy();
             }
         });
+    }
+
+    String deviceJs() {
+        return "window.__tvdev='" + (isTV() ? "tv" : "tablet") + "'";
     }
 
     String readAsset(String name) {
