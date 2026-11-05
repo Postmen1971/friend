@@ -55,6 +55,8 @@ public class MainActivity extends Activity {
     int tapsLeft = 0;
     boolean videoFs = false;
     boolean keyUsed = false;
+    String allowSite = null;
+    long allowUntil = 0;
     String tvview = "";
     String defaultUA = "";
 
@@ -144,6 +146,12 @@ public class MainActivity extends Activity {
                 if (!r.isForMainFrame() || r.isRedirect()) return false;
                 String cur = v.getUrl();
                 if (cur == null || isHome(cur) || isHome(url)) return false;
+                // Vom Nutzer im Raster gewählt: Ziel und Weiterleitungen der nächsten Sekunden erlauben
+                if (allowSite != null && SystemClock.uptimeMillis() < allowUntil) {
+                    allowSite = baseDomain(url);
+                    allowUntil = SystemClock.uptimeMillis() + 8000;
+                    return false;
+                }
                 if (!sameSite(cur, url)) {
                     // Werbe-Weiterleitung auf eine fremde Seite blockieren
                     Toast.makeText(MainActivity.this, "Weiterleitung blockiert", Toast.LENGTH_SHORT).show();
@@ -383,6 +391,12 @@ public class MainActivity extends Activity {
                     cursor.setVisibility(on ? View.GONE : (cursorMode ? View.VISIBLE : View.GONE));
                 }
             });
+        }
+
+        @android.webkit.JavascriptInterface
+        public void allowNav(String url) {
+            allowSite = baseDomain(url);
+            allowUntil = SystemClock.uptimeMillis() + 8000;
         }
 
         @android.webkit.JavascriptInterface

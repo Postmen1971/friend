@@ -343,6 +343,7 @@ function activate(e){
   if(act==='orig'){try{sessionStorage.setItem('__tvoff:'+location.href,'1')}catch(x){}hide();location.reload();return}
   var h=e.getAttribute('data-h');
   if(h){try{sessionStorage.setItem(KEY,h)}catch(x){}
+    if(B.allowNav)B.allowNav(h);
     var n=e.querySelector('.n');if(n)n.textContent='Lädt …';location.href=h}
 }
 
