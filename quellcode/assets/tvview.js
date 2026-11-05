@@ -96,6 +96,25 @@ function collectText(){
   return out;
 }
 
+/* Kategorien-Link der Seite finden (für die Karte „☰ Kategorien“) */
+function findCats(){
+  var my=base(location.hostname),here=location.href.split('#')[0],best=null,bs=99;
+  var as=document.querySelectorAll('a[href]');
+  for(var i=0;i<as.length;i++){
+    var a=as[i];if(a.closest&&a.closest('#__tvov'))continue;
+    var h=abs(a.getAttribute('href'));if(!h||/^javascript:/i.test(h))continue;
+    var u;try{u=new URL(h)}catch(e){continue}
+    if(base(u.hostname)!==my||h.split('#')[0]===here)continue;
+    var t=clean(a.textContent).toLowerCase(),path=u.pathname.toLowerCase();
+    var sc=99;
+    if(/^(all )?(categories|kategorien|alle kategorien|tags|niches|kategorie)$/.test(t))sc=1;
+    else if(/^\/(categories|categorie|kategorien|tags|niches|tag)\/?(\.html?)?$/.test(path))sc=2;
+    else if(/\/(categories|tags)\/?$/.test(path)&&path.split('/').length<=4)sc=3;
+    if(sc<bs){bs=sc;best=h.split('#')[0]}
+  }
+  return best;
+}
+
 function findNext(){
   var l=document.querySelector('link[rel="next"]');if(l&&l.href)return l.href;
   var a=document.querySelector('a[rel="next"]');if(a&&a.href)return a.href;
@@ -259,7 +278,8 @@ function render(){
   ov.onscroll=function(){if(ov.scrollTop+ov.clientHeight>ov.scrollHeight-500)more()};
   if(io)io.disconnect();
   io=window.IntersectionObserver?new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){loadImg(x.target);io.unobserve(x.target)}})},{root:ov,rootMargin:'400px 0px'}):null;
-  if(ALL&&ALL.url){var al=el('div','c nx al',ALL.label);al.setAttribute('data-h',ALL.url);grid.appendChild(al)}
+  if(ALL&&ALL.url&&ALL.url.split('#')[0]!==location.href.split('#')[0]){var al=el('div','c nx al',ALL.label);al.setAttribute('data-h',ALL.url);grid.appendChild(al)}
+  if(!urlCats){var cl=findCats();if(cl){var kc=el('div','c nx al','☰ Kategorien');kc.setAttribute('data-h',cl);grid.appendChild(kc)}}
   addCards(items);
   var f=keepHref&&ov.querySelector('[data-h="'+keepHref.replace(/"/g,'\\"')+'"]');
   focus(f||ov.querySelector('.c')||save);

@@ -316,6 +316,31 @@ if(!store.get('tvstart.layout3')){
   DEFAULTS_V3.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.layout3','1');
 }
+/* Version 4: weitere kostenlose Seiten und Live-Seiten */
+const DEFAULTS_V4=[
+  {group:'Videos',name:'TNAFlix',url:'https://www.tnaflix.com/#tvall=https%3A%2F%2Fwww.tnaflix.com%2F'},
+  {group:'Videos',name:'EMPFlix',url:'https://www.empflix.com/#tvall=https%3A%2F%2Fwww.empflix.com%2F'},
+  {group:'Videos',name:'DrTuber',url:'https://www.drtuber.com/#tvall=https%3A%2F%2Fwww.drtuber.com%2F'},
+  {group:'Videos',name:'Nuvid',url:'https://www.nuvid.com/#tvall=https%3A%2F%2Fwww.nuvid.com%2F'},
+  {group:'Videos',name:'4Tube',url:'https://www.4tube.com/#tvall=https%3A%2F%2Fwww.4tube.com%2F'},
+  {group:'Videos',name:'Fux',url:'https://www.fux.com/#tvall=https%3A%2F%2Fwww.fux.com%2F'},
+  {group:'Videos',name:'PornTube',url:'https://www.porntube.com/#tvall=https%3A%2F%2Fwww.porntube.com%2F'},
+  {group:'Videos',name:'YouJizz',url:'https://www.youjizz.com/#tvall=https%3A%2F%2Fwww.youjizz.com%2F'},
+  {group:'Videos',name:'Porn.com',url:'https://www.porn.com/#tvall=https%3A%2F%2Fwww.porn.com%2F'},
+  {group:'Videos',name:'PornMD (Suche über viele Seiten)',url:'https://www.pornmd.com/#tvall=https%3A%2F%2Fwww.pornmd.com%2F'},
+  {group:'Videos',name:'Sunporno',url:'https://www.sunporno.com/#tvall=https%3A%2F%2Fwww.sunporno.com%2F'},
+  {group:'Videos',name:'Porn300',url:'https://www.porn300.com/#tvall=https%3A%2F%2Fwww.porn300.com%2F'},
+  {group:'Live',name:'MyFreeCams',url:'https://www.myfreecams.com/#tvall=https%3A%2F%2Fwww.myfreecams.com%2F'},
+  {group:'Live',name:'xHamsterLive',url:'https://xhamsterlive.com/#tvall=https%3A%2F%2Fxhamsterlive.com%2F'},
+  {group:'Live',name:'Cherry.tv',url:'https://cherry.tv/#tvall=https%3A%2F%2Fcherry.tv%2F'},
+  {group:'Live',name:'Flirt4Free',url:'https://www.flirt4free.com/#tvall=https%3A%2F%2Fwww.flirt4free.com%2F'},
+  {group:'Live',name:'Streamate',url:'https://www.streamate.com/#tvall=https%3A%2F%2Fwww.streamate.com%2F'},
+  {group:'Live',name:'Cams.com',url:'https://www.cams.com/#tvall=https%3A%2F%2Fwww.cams.com%2F'}
+];
+if(!store.get('tvstart.layout4')){
+  DEFAULTS_V4.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.layout4','1');
+}
 const hash=s=>{let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return String(h)};
 
 function render(){
