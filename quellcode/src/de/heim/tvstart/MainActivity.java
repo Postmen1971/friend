@@ -54,6 +54,7 @@ public class MainActivity extends Activity {
     boolean overlayMode = false;
     int tapsLeft = 0;
     boolean videoFs = false;
+    boolean keyUsed = false;
     String tvview = "";
     String defaultUA = "";
 
@@ -186,7 +187,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageCommitVisible(WebView v, String url) {
                 // TV-Ansicht so früh wie möglich einbinden (wartet selbst, bis die Seite bereit ist)
-                if (!isHome(url)) { js(AUTO_FULLSCREEN); js(tvview); }
+                if (!isHome(url)) { js(tvview); }
             }
 
             @Override
@@ -197,7 +198,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView v, String url) {
                 updateMode(url);
-                if (!isHome(url)) { js(AUTO_FULLSCREEN); js(tvview); }
+                if (!isHome(url)) { js(tvview); }
                 if (isHome(url)) {
                     if (clearHistoryOnLoad) {
                         clearHistoryOnLoad = false;
@@ -375,6 +376,16 @@ public class MainActivity extends Activity {
         }
 
         @android.webkit.JavascriptInterface
+        public void home() {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    goHome(false);
+                }
+            });
+        }
+
+        @android.webkit.JavascriptInterface
         public void ready() {
             handler.post(new Runnable() {
                 @Override
@@ -461,8 +472,8 @@ public class MainActivity extends Activity {
         boolean c = !isHome(url) && !overlayMode;
         if (c == cursorMode) return;
         cursorMode = c;
-        cursor.setVisibility(c ? View.VISIBLE : View.GONE);
-        if (c && !hintShown) {
+        cursor.setVisibility(c && keyUsed ? View.VISIBLE : View.GONE);
+        if (c && keyUsed && !hintShown) {
             hintShown = true;
             Toast.makeText(this,
                     "Steuerkreuz = Zeiger · OK = Klick\nOK lange = Menü (TV-Ansicht, Kachel speichern)\nZURÜCK lange = Startseite",
@@ -507,10 +518,27 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        // Bedienung per Finger (Tablet): Zeiger ausblenden
+        if (keyUsed) {
+            keyUsed = false;
+            cursor.setVisibility(View.GONE);
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int k = e.getKeyCode();
         int a = e.getAction();
         int rep = e.getRepeatCount();
+        if (!keyUsed && a == KeyEvent.ACTION_DOWN && k >= KeyEvent.KEYCODE_DPAD_UP && k <= KeyEvent.KEYCODE_DPAD_CENTER) {
+            keyUsed = true;
+            if (cursorMode && !videoFs && customView == null) {
+                cursor.setVisibility(View.VISIBLE);
+                return true;
+            }
+        }
 
         if (k == KeyEvent.KEYCODE_BACK) {
             if (a == KeyEvent.ACTION_DOWN) {
@@ -526,13 +554,13 @@ public class MainActivity extends Activity {
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
                 case KeyEvent.KEYCODE_MEDIA_PLAY:
                 case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                    js("(function(){var v=" + MV + ";if(v){if(v.paused)v.play();else v.pause();}})()");
+                    js("window.__tvp&&__tvp('toggle')||(function(){var v=" + MV + ";if(v){if(v.paused)v.play();else v.pause();}})()");
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-                    js("(function(){var v=" + MV + ";if(v)v.currentTime+=10;})()");
+                    js("window.__tvp&&__tvp('seek',10)||(function(){var v=" + MV + ";if(v)v.currentTime+=10;})()");
                     return true;
                 case KeyEvent.KEYCODE_MEDIA_REWIND:
-                    js("(function(){var v=" + MV + ";if(v)v.currentTime-=10;})()");
+                    js("window.__tvp&&__tvp('seek',-10)||(function(){var v=" + MV + ";if(v)v.currentTime-=10;})()");
                     return true;
             }
         }
@@ -544,17 +572,19 @@ public class MainActivity extends Activity {
                 case KeyEvent.KEYCODE_ENTER:
                 case KeyEvent.KEYCODE_NUMPAD_ENTER:
                     if (a == KeyEvent.ACTION_DOWN && rep == 0)
-                        js("(function(){var v=" + MV + ";if(v){if(v.paused)v.play();else v.pause();}})()");
+                        js("window.__tvp&&__tvp('toggle')||(function(){var v=" + MV + ";if(v){if(v.paused)v.play();else v.pause();}})()");
                     return true;
                 case KeyEvent.KEYCODE_DPAD_LEFT:
                 case KeyEvent.KEYCODE_DPAD_RIGHT:
                     if (a == KeyEvent.ACTION_DOWN) {
                         int sec = (k == KeyEvent.KEYCODE_DPAD_RIGHT ? 10 : -10) * (rep > 3 ? 3 : 1);
-                        js("(function(){var v=" + MV + ";if(v)v.currentTime=Math.max(0,v.currentTime+(" + sec + "));})()");
+                        if (rep > 0 && rep % 2 == 1) return true; // beim Halten nicht zu schnell springen
+                        js("window.__tvp&&__tvp('seek'," + sec + ")||(function(){var v=" + MV + ";if(v)v.currentTime=Math.max(0,v.currentTime+(" + sec + "));})()");
                     }
                     return true;
                 case KeyEvent.KEYCODE_DPAD_UP:
                 case KeyEvent.KEYCODE_DPAD_DOWN:
+                    if (a == KeyEvent.ACTION_DOWN) js("window.__tvp&&__tvp('show')");
                     return true;
             }
         }
