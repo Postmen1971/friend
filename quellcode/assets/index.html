@@ -141,6 +141,16 @@ const DEFAULTS_WELT=[
   {group:'Russisch',name:'Eporner – Russisch',url:'https://www.eporner.com/search/russian/'},
   {group:'Russisch',name:'XVideos – Russisch',url:'https://www.xvideos.com/?k=russian'}
 ];
+const DEFAULTS_JP2=[
+  {group:'Japan',name:'Pornhub – Japan unzensiert',url:'https://www.pornhub.com/video/search?search=japanese+uncensored'},
+  {group:'Japan',name:'SpankBang – Japan unzensiert',url:'https://spankbang.com/s/japanese+uncensored/'},
+  {group:'Japan',name:'Eporner – Japan unzensiert',url:'https://www.eporner.com/search/japanese-uncensored/'},
+  {group:'Japan',name:'XVideos – Japan unzensiert',url:'https://www.xvideos.com/?k=japanese+uncensored'}
+];
+if(!store.get('tvstart.defaults6')){
+  DEFAULTS_JP2.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
+  save();store.set('tvstart.defaults6','1');
+}
 if(!store.get('tvstart.defaults5')){
   DEFAULTS_WELT.forEach(d=>{if(!tiles.some(t=>t.url===d.url))tiles.push(d)});
   save();store.set('tvstart.defaults5','1');
