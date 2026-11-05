@@ -4,6 +4,14 @@ var B=window.TVApp||{overlay:function(){},playAt:function(){},saveTile:function(
 var KEY='__tvf:'+location.href.split('#')[0],ticks=0,io=null;
 var pauseT=null,on=false,manualOff=false,items=[],next=null,ov=null,cur=null,triedPlay=false;
 
+/* Einstieg über eine Kachel: "Alle"-Link merken (kommt als #tvall=... mit) */
+var ALL=null;
+try{
+  var hm=location.hash.match(/tvall=([^&]+)/);
+  if(hm){ALL={entry:location.href.split('#')[0],url:decodeURIComponent(hm[1]),label:/live|cam|chaturbate|stripchat|bonga|camsoda/i.test(location.hostname)?'▶ Alle live':'▶ Alle Videos'};
+    sessionStorage.setItem('__tvall',JSON.stringify(ALL));history.replaceState(null,'',ALL.entry)}
+  else{var st=JSON.parse(sessionStorage.getItem('__tvall')||'null');if(st&&st.entry===location.href.split('#')[0])ALL=st}
+}catch(e){}
 var css=document.createElement('style');
 css.textContent=
 'html.__tvon,html.__tvon body{overflow:hidden!important;background:#0e0f13!important}'+
@@ -20,6 +28,8 @@ css.textContent=
 '#__tvov .du{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.75);color:#fff;font-size:12px;padding:2px 6px;border-radius:6px}'+
 '#__tvov .n{padding:6px 8px;font-size:13px;line-height:1.3;height:3.2em;overflow:hidden}'+
 '#__tvov .nx{display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;min-height:110px}'+
+'#__tvov .al{background:#ff6a3d;color:#fff}'+
+'#__tvov .tx{display:flex;align-items:center;justify-content:center;text-align:center;min-height:70px;font-size:17px;font-weight:600;padding:10px}'+
 '#__tvov .f{border-color:#ffffff!important}'+
 '#__tvov{-webkit-overflow-scrolling:auto;overscroll-behavior:contain;contain:strict}';
 if(window.__tvdev==='tablet')css.textContent+='#__tvov .g{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}#__tvov .n{font-size:12px}';
@@ -65,6 +75,24 @@ function collect(){
   /* Wenn genug Einträge eine Laufzeit haben, sind das die Videos: nur diese zeigen */
   var vids=out.filter(function(x){return x.dur});
   if(vids.length>=8)return vids;
+  return out;
+}
+
+var urlCats=/tags?|categor|kategor|niche/i.test(location.pathname);
+function collectText(){
+  var seen={},out=[],my=base(location.hostname),here=location.href.split('#')[0];
+  var as=document.querySelectorAll('a[href]');
+  for(var i=0;i<as.length;i++){
+    var a=as[i];
+    if(a.closest&&a.closest('#__tvov,header,footer,nav'))continue;
+    var t=clean(a.textContent);if(t.length<2||t.length>32)continue;
+    var href=abs(a.getAttribute('href'));if(!href||/^javascript:/i.test(href))continue;
+    var u;try{u=new URL(href)}catch(e){continue}
+    if(base(u.hostname)!==my||href.split('#')[0]===here||u.pathname==='/'||u.pathname==='')continue;
+    if(/login|signup|sign-up|register|premium|upload|terms|privacy|dmca|contact|faq|support|blog/i.test(u.pathname))continue;
+    var k=href.split('#')[0];if(seen[k])continue;seen[k]=1;
+    out.push({href:k,img:'',title:t.replace(/\s*[\d.,]+[kKmM]?\s*$/,''),dur:''});
+  }
   return out;
 }
 
@@ -231,6 +259,7 @@ function render(){
   ov.onscroll=function(){if(ov.scrollTop+ov.clientHeight>ov.scrollHeight-500)more()};
   if(io)io.disconnect();
   io=window.IntersectionObserver?new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){loadImg(x.target);io.unobserve(x.target)}})},{root:ov,rootMargin:'400px 0px'}):null;
+  if(ALL&&ALL.url){var al=el('div','c nx al',ALL.label);al.setAttribute('data-h',ALL.url);grid.appendChild(al)}
   addCards(items);
   var f=keepHref&&ov.querySelector('[data-h="'+keepHref.replace(/"/g,'\\"')+'"]');
   focus(f||ov.querySelector('.c')||save);
@@ -241,7 +270,9 @@ function loadImg(im){var u=im.getAttribute('data-img');if(u){var g=document.crea
 function addCards(list){
   if(nextCard){nextCard.remove();nextCard=null}
   list.forEach(function(it){
-    var c=el('div','c');c.setAttribute('data-h',it.href);
+    var c;
+    if(!it.img){c=el('div','c tx',it.title||'');c.setAttribute('data-h',it.href);grid.appendChild(c);return}
+    c=el('div','c');c.setAttribute('data-h',it.href);
     var im=el('div','im');im.setAttribute('data-img',it.img);
     if(it.dur)im.appendChild(el('span','du',it.dur));
     c.appendChild(im);c.appendChild(el('div','n',it.title||''));grid.appendChild(c);
@@ -338,6 +369,7 @@ function check(force){
   }
   if(urlVideo&&ticks<6)return;
   var it=collect();
+  if(it.length<8&&(urlCats||ALL)){var tx=collectText();if(tx.length>=8)it=tx}
   if(it.length>=8){items=it;next=findNext();show()}
   else if(ticks>=5)B.ready();
 }
